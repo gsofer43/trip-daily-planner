@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מתכנן מסלול טיול</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-titles">
+    <h1 id="tripTitle">מסלול טיול: מונטנגרו ואלבניה</h1>
+    <p class="subtitle">ספטמבר – אוקטובר</p>
+  </div>
+  <div class="header-actions">
+    <button id="overviewMapBtn" class="btn btn-ghost" title="הצגת כל המסלול על מפה אחת">🗺️ מפת מסלול מלא</button>
+    <button id="exportBtn" class="btn btn-ghost" title="שמירת גיבוי כקובץ JSON">⬇️ גיבוי</button>
+    <label class="btn btn-ghost file-label" title="טעינת גיבוי מקובץ JSON">
+      ⬆️ שחזור
+      <input type="file" id="importInput" accept="application/json" hidden>
+    </label>
+    <button id="resetBtn" class="btn btn-ghost danger" title="מחיקת הכל וחזרה למסלול הלדוגמה">↺ איפוס</button>
+  </div>
+</header>
+
+<div class="hero" aria-hidden="true">
+  <svg viewBox="0 0 900 260" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="נוף חופי בסגנון הריביירה האלבנית">
+    <defs>
+      <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fdf3e4"/>
+        <stop offset="55%" stop-color="#f7e0c4"/>
+        <stop offset="100%" stop-color="#eab98a"/>
+      </linearGradient>
+      <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3fa294"/>
+        <stop offset="100%" stop-color="#1f7a6c"/>
+      </linearGradient>
+      <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f3b183" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#f3b183" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <rect width="900" height="260" fill="url(#skyGrad)"/>
+    <circle cx="740" cy="70" r="90" fill="url(#sunGlow)"/>
+    <circle cx="740" cy="70" r="34" fill="#c2622f"/>
+
+    <path d="M120 55 q8 -10 16 0 q8 -10 16 0" stroke="#8a5a3c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M170 40 q7 -9 14 0 q7 -9 14 0" stroke="#8a5a3c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+    <rect x="0" y="150" width="900" height="110" fill="url(#seaGrad)"/>
+    <path d="M0 150 Q150 138 300 150 T 600 150 T 900 150 V170 Q750 158 600 170 T300 170 T0 170 Z" fill="#4fb3a0" opacity="0.55"/>
+
+    <g>
+      <ellipse cx="560" cy="168" rx="26" ry="9" fill="#155a4f"/>
+      <path d="M552 168 q8 -22 16 0 z" fill="#2f6b4d"/>
+      <ellipse cx="640" cy="180" rx="18" ry="6" fill="#155a4f"/>
+      <path d="M634 180 q6 -16 12 0 z" fill="#2f6b4d"/>
+    </g>
+
+    <g>
+      <path d="M430 190 l60 0 l-10 14 l-40 0 z" fill="#2b2620"/>
+      <line x1="460" y1="190" x2="460" y2="168" stroke="#2b2620" stroke-width="2"/>
+      <path d="M460 170 l20 20 l-20 0 z" fill="#f6f4ef"/>
+    </g>
+
+    <path d="M0 260 L0 170 Q60 140 110 175 Q150 195 190 165 L230 260 Z" fill="#8a5236"/>
+    <path d="M900 260 L900 150 Q840 120 800 160 Q760 185 720 150 L680 260 Z" fill="#7a4530"/>
+  </svg>
+</div>
+
+<div class="tabs-row">
+  <nav id="dayTabs" class="day-tabs"></nav>
+  <button id="addDayBtn" class="btn btn-add-day">+ יום</button>
+</div>
+
+<main id="dayContent" class="day-content"></main>
+
+<section id="overviewMapSection" class="overview-map-section hidden">
+  <div class="overview-map-header">
+    <div class="map-section-title">🗺️ מפת המסלול המלא</div>
+    <button id="closeOverviewBtn" class="btn btn-ghost">✕ חזרה לימים</button>
+  </div>
+  <div id="overviewMap" class="overview-map"></div>
+</section>
+
+<template id="emptyDaysTemplate">
+  <div class="empty-state">
+    <p>אין עדיין ימים במסלול.</p>
+    <button class="btn btn-primary" id="emptyAddDayBtn">הוספת יום ראשון</button>
+  </div>
+</template>
+
+<!-- Stop (station) add/edit modal -->
+<div id="stopModal" class="modal hidden">
+  <div class="modal-box">
+    <h2 id="stopModalTitle">הוספת תחנה</h2>
+    <form id="stopForm">
+      <label>
+        שעה משוערת
+        <input type="time" id="stopTime" required>
+      </label>
+      <label>
+        חיפוש מקום (למילוי אוטומטי של שם וקואורדינטות)
+        <div class="place-search-wrap">
+          <input type="text" id="stopSearchInput" placeholder="לדוגמה: Budva, Montenegro" autocomplete="off">
+          <ul id="stopSearchResults" class="search-results hidden"></ul>
+        </div>
+      </label>
+      <label>
+        שם המקום
+        <input type="text" id="stopPlace" required placeholder="לדוגמה: מבצר רוזאפה">
+      </label>
+      <label>
+        הערה קצרה
+        <textarea id="stopNote" rows="2" placeholder="פרטים נוספים, טיפים, כתובת..."></textarea>
+      </label>
+      <label>
+        קואורדינטות (לא חובה — מתמלא אוטומטית מהחיפוש למעלה, או הזינו ידנית)
+        <input type="text" id="stopCoords" placeholder="42.4247, 18.7712">
+        <small class="field-hint">גיבוי ידני: מגוגל מפות — קליק ימני על המקום ← "מה יש כאן?" / העתקת הקואורדינטות</small>
+      </label>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">שמירה</button>
+        <button type="button" id="cancelStopBtn" class="btn btn-ghost">ביטול</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Day add/edit modal -->
+<div id="dayModal" class="modal hidden">
+  <div class="modal-box">
+    <h2 id="dayModalTitle">יום חדש</h2>
+    <form id="dayForm">
+      <label>
+        כותרת היום
+        <input type="text" id="dayTitleInput" required placeholder="לדוגמה: טיראנה">
+      </label>
+      <label>
+        תאריך
+        <input type="text" id="dayDateInput" placeholder="לדוגמה: 19/09">
+      </label>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">שמירה</button>
+        <button type="button" id="cancelDayBtn" class="btn btn-ghost">ביטול</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Place info modal (Wikipedia) -->
+<div id="infoModal" class="modal hidden">
+  <div class="modal-box">
+    <h2 id="infoModalTitle"></h2>
+    <img id="infoModalImage" class="info-modal-image hidden" alt="">
+    <p id="infoModalExtract" class="info-modal-extract"></p>
+    <div class="modal-actions">
+      <a id="infoModalLink" class="btn btn-ghost hidden" target="_blank" rel="noopener noreferrer">קריאה נוספת בוויקיפדיה ↗</a>
+      <button type="button" id="closeInfoBtn" class="btn btn-primary">סגירה</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>

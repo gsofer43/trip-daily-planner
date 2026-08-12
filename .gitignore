@@ -1,0 +1,13 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# Local env files (none expected in this static app, but just in case)
+.env
+.env.local
