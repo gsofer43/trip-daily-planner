@@ -106,7 +106,7 @@ body {
   height: clamp(130px, 22vw, 220px);
   background-image:
     linear-gradient(to top, rgba(20, 18, 15, 0.65) 0%, rgba(20, 18, 15, 0.15) 55%, rgba(20, 18, 15, 0) 100%),
-    url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Bay_of_Kotor_Panorama.jpg/1600px-Bay_of_Kotor_Panorama.jpg');
+    url('hero.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
