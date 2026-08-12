@@ -2,12 +2,18 @@
 
 const STORAGE_KEY = 'travelPlannerData';
 
-// מיפוי ידני של שם תחנה מדויק ← קישור גוגל מפות מאומת (place_id), לתחנות ספציפיות
-// שכבר בדקנו ידנית. אפשר להוסיף עוד שורות בעתיד כדי לתת עוד תחנות קישור ישיר.
-const VERIFIED_STATION_MAPS_LINKS = {
-  'Vinarija Janković': 'https://www.google.com/maps/place/?q=place_id:ChIJw52UHYLETRMRymPOnT0ymjA',
-  'Nurellari Winery Cellar': 'https://www.google.com/maps/place/?q=place_id:ChIJU585moiZWhMRktiM5DsrS04',
-  'Storia di Pietra': 'https://www.google.com/maps/place/?q=place_id:ChIJjV_LK_AzTBMRStdpMdGAVtY'
+// בונה קישור גוגל מפות בפורמט ה-Search API המומלץ (עובד אמין גם באפליקציית המובייל,
+// בשונה מהפורמט הישן ?q=place_id:XXX שגוגל מציג לפעמים כטקסט גולמי במקום לפתוח את המקום).
+function buildVerifiedMapsUrl(name, placeId) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query_place_id=${placeId}`;
+}
+
+// מיפוי ידני של שם תחנה מדויק ← place_id מאומת בגוגל מפות, לתחנות ספציפיות שכבר בדקנו
+// ידנית. אפשר להוסיף עוד שורות בעתיד כדי לתת עוד תחנות קישור ישיר.
+const VERIFIED_STATION_PLACE_IDS = {
+  'Vinarija Janković': 'ChIJw52UHYLETRMRymPOnT0ymjA',
+  'Nurellari Winery Cellar': 'ChIJU585moiZWhMRktiM5DsrS04',
+  'Storia di Pietra': 'ChIJjV_LK_AzTBMRStdpMdGAVtY'
 };
 
 function uid(prefix) {
@@ -381,7 +387,7 @@ function renderDayPanel() {
         </div>
         <div class="stop-actions">
           <button class="icon-btn hidden" data-action="info-stop" title="מידע על המקום (ויקיפדיה)">ℹ️</button>
-          ${VERIFIED_STATION_MAPS_LINKS[stop.place] ? `<a class="icon-btn" href="${escapeHtml(VERIFIED_STATION_MAPS_LINKS[stop.place])}" target="_blank" rel="noopener noreferrer" title="פתיחה בגוגל מפות (קישור מאומת)">📍</a>` : ''}
+          ${VERIFIED_STATION_PLACE_IDS[stop.place] ? `<a class="icon-btn" href="${escapeHtml(buildVerifiedMapsUrl(stop.place, VERIFIED_STATION_PLACE_IDS[stop.place]))}" target="_blank" rel="noopener noreferrer" title="פתיחה בגוגל מפות (קישור מאומת)">📍</a>` : ''}
           <button class="icon-btn" data-action="edit-stop" title="עריכה">✏️</button>
           <button class="icon-btn" data-action="delete-stop" title="מחיקה">🗑️</button>
         </div>
@@ -912,41 +918,44 @@ const WINERIES_BY_LOCATION = [
   {
     location: 'רייקה צרנוייביצה (לינה 12–14.9)',
     wineries: [
-      { name: 'Vinarija Janković', note: 'בכפר עצמו, כ-5 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJw52UHYLETRMRymPOnT0ymjA' },
-      { name: 'Vinarija Mašanović (וירפזאר)', note: 'כ-20 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJs8Hup0_ZTRMRBwH5EwO1z0c' },
-      { name: 'Garnet Winery (גודינייה)', note: 'כ-25 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJEVidvtzeTRMROPmOmh5OV-k' }
+      { name: 'Vinarija Janković', note: 'בכפר עצמו, כ-5 דק\' נסיעה', placeId: 'ChIJw52UHYLETRMRymPOnT0ymjA' },
+      { name: 'Vinarija Mašanović (וירפזאר)', note: 'כ-20 דק\' נסיעה', placeId: 'ChIJs8Hup0_ZTRMRBwH5EwO1z0c' },
+      { name: 'Garnet Winery (גודינייה)', note: 'כ-25 דק\' נסיעה', placeId: 'ChIJEVidvtzeTRMROPmOmh5OV-k' }
     ]
   },
   {
     location: 'בראט (לינה 18.9)',
     wineries: [
-      { name: 'Çobo Winery', note: 'כ-25-30 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJo2pQjs2gWhMR-LwzH5Jkk3s' }
+      { name: 'Çobo Winery', note: 'כ-25-30 דק\' נסיעה', placeId: 'ChIJo2pQjs2gWhMR-LwzH5Jkk3s' }
     ]
   },
   {
     location: 'טירנה (לינה 24.9)',
     wineries: [
-      { name: 'Kantina Binjakët', note: 'בעיר עצמה, כ-5-10 דק\'', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJBdQT49YxUBMROspiM50lipw' },
-      { name: 'Vila Shehi Winery (וורה)', note: 'כ-20-25 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJAeIrf4EvUBMR8udtW9RvUo8' }
+      { name: 'Kantina Binjakët', note: 'בעיר עצמה, כ-5-10 דק\'', placeId: 'ChIJBdQT49YxUBMROspiM50lipw' },
+      { name: 'Vila Shehi Winery (וורה)', note: 'כ-20-25 דק\' נסיעה', placeId: 'ChIJAeIrf4EvUBMR8udtW9RvUo8' }
     ]
   },
   {
     location: 'בדרך מטירנה לבודווה (25.9) — ליד פודגוריצה',
     wineries: [
-      { name: 'Wine Cellar Šipčanik', note: 'סטייה קצרה מהכביש הראשי', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ0xcKRDrsTRMRAVez858sYg4' }
+      { name: 'Wine Cellar Šipčanik', note: 'סטייה קצרה מהכביש הראשי', placeId: 'ChIJ0xcKRDrsTRMRAVez858sYg4' }
     ]
   },
   {
     location: 'קוטור (לינה 27–30.9)',
     wineries: [
-      { name: 'Storia di Pietra', note: 'כ-45-60 דק\' (כולל מעבורת קמנארי-לפטנה)', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJjV_LK_AzTBMRStdpMdGAVtY' },
-      { name: 'Kraken Kotor (מרתף תת-ימי)', note: 'כ-15-20 דק\' נסיעה + מעבר בסירה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ-amgyoI1TBMRRYL_1BbyIwE' }
+      { name: 'Storia di Pietra', note: 'כ-45-60 דק\' (כולל מעבורת קמנארי-לפטנה)', placeId: 'ChIJjV_LK_AzTBMRStdpMdGAVtY' },
+      { name: 'Kraken Kotor (מרתף תת-ימי)', note: 'כ-15-20 דק\' נסיעה + מעבר בסירה', placeId: 'ChIJ-amgyoI1TBMRRYL_1BbyIwE' }
     ]
   }
 ];
 
 function renderWineries() {
-  const groups = WINERIES_BY_LOCATION.map(g => ({ location: g.location, items: g.wineries }));
+  const groups = WINERIES_BY_LOCATION.map(g => ({
+    location: g.location,
+    items: g.wineries.map(w => ({ name: w.name, note: w.note, mapsUrl: buildVerifiedMapsUrl(w.name, w.placeId) }))
+  }));
   renderPlaceGroups(wineriesListEl, groups, 'פתח בגוגל מפות 🗺️');
 }
 
