@@ -283,6 +283,11 @@ const wineriesSection = document.getElementById('wineriesSection');
 const closeWineriesBtn = document.getElementById('closeWineriesBtn');
 const wineriesListEl = document.getElementById('wineriesList');
 
+const hotelsBtn = document.getElementById('hotelsBtn');
+const hotelsSection = document.getElementById('hotelsSection');
+const closeHotelsBtn = document.getElementById('closeHotelsBtn');
+const hotelsListEl = document.getElementById('hotelsList');
+
 const infoModal = document.getElementById('infoModal');
 const infoModalTitle = document.getElementById('infoModalTitle');
 const infoModalImage = document.getElementById('infoModalImage');
@@ -860,20 +865,38 @@ function deleteDay(dayId) {
   render();
 }
 
-// ---------- Overview map (all days) ----------
-overviewMapBtn.addEventListener('click', () => {
-  tabsRowEl.classList.add('hidden');
-  dayContentEl.classList.add('hidden');
-  wineriesSection.classList.add('hidden');
-  overviewMapSection.classList.remove('hidden');
-  renderOverviewMap();
-});
+// ---------- Grouped place cards (shared by wineries / hotels / future pages) ----------
+// groups: [{ location, items: [{ name, note?, mapsUrl }] }]
+function renderPlaceGroups(containerEl, groups, buttonLabel) {
+  containerEl.innerHTML = '';
+  groups.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'place-group';
 
-closeOverviewBtn.addEventListener('click', () => {
-  overviewMapSection.classList.add('hidden');
-  tabsRowEl.classList.remove('hidden');
-  dayContentEl.classList.remove('hidden');
-});
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'place-group-title';
+    titleEl.textContent = group.location;
+    groupEl.appendChild(titleEl);
+
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'place-cards';
+
+    group.items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'place-card';
+      card.innerHTML = `
+        <p class="place-name">${escapeHtml(item.name)}</p>
+        ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
+        <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
+        <small class="place-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
+      `;
+      cardsEl.appendChild(card);
+    });
+
+    groupEl.appendChild(cardsEl);
+    containerEl.appendChild(groupEl);
+  });
+}
 
 // ---------- Recommended wineries (static reference page) ----------
 const WINERIES_BY_LOCATION = [
@@ -914,48 +937,79 @@ const WINERIES_BY_LOCATION = [
 ];
 
 function renderWineries() {
-  wineriesListEl.innerHTML = '';
-  WINERIES_BY_LOCATION.forEach(group => {
-    const groupEl = document.createElement('div');
-    groupEl.className = 'winery-group';
-
-    const titleEl = document.createElement('h3');
-    titleEl.className = 'winery-group-title';
-    titleEl.textContent = group.location;
-    groupEl.appendChild(titleEl);
-
-    const cardsEl = document.createElement('div');
-    cardsEl.className = 'winery-cards';
-
-    group.wineries.forEach(winery => {
-      const card = document.createElement('div');
-      card.className = 'winery-card';
-      card.innerHTML = `
-        <p class="winery-name">${escapeHtml(winery.name)}</p>
-        <p class="winery-note">${escapeHtml(winery.note)}</p>
-        <a href="${escapeHtml(winery.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary winery-maps-btn">פתח בגוגל מפות 🗺️</a>
-        <small class="winery-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
-      `;
-      cardsEl.appendChild(card);
-    });
-
-    groupEl.appendChild(cardsEl);
-    wineriesListEl.appendChild(groupEl);
-  });
+  const groups = WINERIES_BY_LOCATION.map(g => ({ location: g.location, items: g.wineries }));
+  renderPlaceGroups(wineriesListEl, groups, 'פתח בגוגל מפות 🗺️');
 }
 
-wineriesBtn.addEventListener('click', () => {
+// ---------- Recommended hotels (static reference page) ----------
+function buildHotelMapsSearchUrl(hotelName, searchLocation) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelName + ' ' + searchLocation)}`;
+}
+
+// searchLocation מגדיר מחרוזת ניקוי לחיפוש בגוגל מפות (בלי תוספות עברית), נפרד מ-location שמוצג למשתמש.
+const HOTELS_BY_LOCATION = [
+  {
+    location: 'Rijeka Crnojevića',
+    searchLocation: 'Rijeka Crnojevića, Montenegro',
+    hotels: ['Casarogna Luxury Rooms', 'Rooms Dujeva Drago-Resort', 'Village house - Novak Rijecani']
+  },
+  {
+    location: 'ת\'ת\' (Theth)',
+    searchLocation: 'Theth, Albania',
+    hotels: ['Molla Guest House', 'Guesthouse Gjin Thana', 'Thethi Paradise Hotel & Restaurant', 'Vidis Chalet Boutique Hotel']
+  },
+  {
+    location: 'שקודר (Shkodër)',
+    searchLocation: 'Shkodër, Albania',
+    hotels: ['TRIBUTE Hotel', 'The Red Bricks Hotel', 'The Roots Boutique Hotel']
+  },
+  {
+    location: 'בראט (Berat)',
+    searchLocation: 'Berat, Albania',
+    hotels: ['Vista Boutique Hotel']
+  }
+];
+
+function renderHotels() {
+  const groups = HOTELS_BY_LOCATION.map(g => ({
+    location: g.location,
+    items: g.hotels.map(name => ({ name, mapsUrl: buildHotelMapsSearchUrl(name, g.searchLocation) }))
+  }));
+  renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️');
+}
+
+// ---------- Special full-width sections (overview map / wineries / hotels) ----------
+// כל הכפתורים האלה חולקים מצב "תצוגה מיוחדת" אחת: פתיחת אחת סוגרת את האחרות אוטומטית.
+function hideAllSpecialSections() {
+  overviewMapSection.classList.add('hidden');
+  wineriesSection.classList.add('hidden');
+  hotelsSection.classList.add('hidden');
+}
+
+function openSpecialSection(section) {
   tabsRowEl.classList.add('hidden');
   dayContentEl.classList.add('hidden');
-  overviewMapSection.classList.add('hidden');
-  wineriesSection.classList.remove('hidden');
-});
+  hideAllSpecialSections();
+  section.classList.remove('hidden');
+}
 
-closeWineriesBtn.addEventListener('click', () => {
-  wineriesSection.classList.add('hidden');
+function closeSpecialSections() {
+  hideAllSpecialSections();
   tabsRowEl.classList.remove('hidden');
   dayContentEl.classList.remove('hidden');
+}
+
+overviewMapBtn.addEventListener('click', () => {
+  openSpecialSection(overviewMapSection);
+  renderOverviewMap();
 });
+closeOverviewBtn.addEventListener('click', closeSpecialSections);
+
+wineriesBtn.addEventListener('click', () => openSpecialSection(wineriesSection));
+closeWineriesBtn.addEventListener('click', closeSpecialSections);
+
+hotelsBtn.addEventListener('click', () => openSpecialSection(hotelsSection));
+closeHotelsBtn.addEventListener('click', closeSpecialSections);
 
 // ---------- Backup: export / import / reset ----------
 exportBtn.addEventListener('click', () => {
@@ -1003,3 +1057,4 @@ resetBtn.addEventListener('click', () => {
 // ---------- Init ----------
 render();
 renderWineries();
+renderHotels();
