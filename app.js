@@ -2,6 +2,14 @@
 
 const STORAGE_KEY = 'travelPlannerData';
 
+// מיפוי ידני של שם תחנה מדויק ← קישור גוגל מפות מאומת (place_id), לתחנות ספציפיות
+// שכבר בדקנו ידנית. אפשר להוסיף עוד שורות בעתיד כדי לתת עוד תחנות קישור ישיר.
+const VERIFIED_STATION_MAPS_LINKS = {
+  'Vinarija Janković': 'https://www.google.com/maps/place/?q=place_id:ChIJw52UHYLETRMRymPOnT0ymjA',
+  'Nurellari Winery Cellar': 'https://www.google.com/maps/place/?q=place_id:ChIJU585moiZWhMRktiM5DsrS04',
+  'Storia di Pietra': 'https://www.google.com/maps/place/?q=place_id:ChIJjV_LK_AzTBMRStdpMdGAVtY'
+};
+
 function uid(prefix) {
   return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -373,6 +381,7 @@ function renderDayPanel() {
         </div>
         <div class="stop-actions">
           <button class="icon-btn hidden" data-action="info-stop" title="מידע על המקום (ויקיפדיה)">ℹ️</button>
+          ${VERIFIED_STATION_MAPS_LINKS[stop.place] ? `<a class="icon-btn" href="${escapeHtml(VERIFIED_STATION_MAPS_LINKS[stop.place])}" target="_blank" rel="noopener noreferrer" title="פתיחה בגוגל מפות (קישור מאומת)">📍</a>` : ''}
           <button class="icon-btn" data-action="edit-stop" title="עריכה">✏️</button>
           <button class="icon-btn" data-action="delete-stop" title="מחיקה">🗑️</button>
         </div>
