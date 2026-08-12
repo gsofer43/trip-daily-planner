@@ -16,6 +16,7 @@
   </div>
   <div class="header-actions">
     <button id="overviewMapBtn" class="btn btn-ghost" title="הצגת כל המסלול על מפה אחת">🗺️ מפת מסלול מלא</button>
+    <button id="wineriesBtn" class="btn btn-ghost" title="יקבים מומלצים לאורך המסלול">🍷 יקבים מומלצים</button>
     <button id="exportBtn" class="btn btn-ghost" title="שמירת גיבוי כקובץ JSON">⬇️ גיבוי</button>
     <label class="btn btn-ghost file-label" title="טעינת גיבוי מקובץ JSON">
       ⬆️ שחזור
@@ -84,6 +85,14 @@
     <button id="closeOverviewBtn" class="btn btn-ghost">✕ חזרה לימים</button>
   </div>
   <div id="overviewMap" class="overview-map"></div>
+</section>
+
+<section id="wineriesSection" class="overview-map-section hidden">
+  <div class="overview-map-header">
+    <div class="map-section-title">🍷 יקבים מומלצים</div>
+    <button id="closeWineriesBtn" class="btn btn-ghost">✕ חזרה לימים</button>
+  </div>
+  <div id="wineriesList" class="wineries-list"></div>
 </section>
 
 <template id="emptyDaysTemplate">

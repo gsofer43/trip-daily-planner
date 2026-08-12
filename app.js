@@ -278,6 +278,11 @@ const closeOverviewBtn = document.getElementById('closeOverviewBtn');
 const tabsRowEl = document.querySelector('.tabs-row');
 let overviewMapInstance = null;
 
+const wineriesBtn = document.getElementById('wineriesBtn');
+const wineriesSection = document.getElementById('wineriesSection');
+const closeWineriesBtn = document.getElementById('closeWineriesBtn');
+const wineriesListEl = document.getElementById('wineriesList');
+
 const infoModal = document.getElementById('infoModal');
 const infoModalTitle = document.getElementById('infoModalTitle');
 const infoModalImage = document.getElementById('infoModalImage');
@@ -859,12 +864,95 @@ function deleteDay(dayId) {
 overviewMapBtn.addEventListener('click', () => {
   tabsRowEl.classList.add('hidden');
   dayContentEl.classList.add('hidden');
+  wineriesSection.classList.add('hidden');
   overviewMapSection.classList.remove('hidden');
   renderOverviewMap();
 });
 
 closeOverviewBtn.addEventListener('click', () => {
   overviewMapSection.classList.add('hidden');
+  tabsRowEl.classList.remove('hidden');
+  dayContentEl.classList.remove('hidden');
+});
+
+// ---------- Recommended wineries (static reference page) ----------
+const WINERIES_BY_LOCATION = [
+  {
+    location: 'רייקה צרנוייביצה (לינה 12–14.9)',
+    wineries: [
+      { name: 'Vinarija Janković', note: 'בכפר עצמו, כ-5 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJw52UHYLETRMRymPOnT0ymjA' },
+      { name: 'Vinarija Mašanović (וירפזאר)', note: 'כ-20 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJs8Hup0_ZTRMRBwH5EwO1z0c' },
+      { name: 'Garnet Winery (גודינייה)', note: 'כ-25 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJEVidvtzeTRMROPmOmh5OV-k' }
+    ]
+  },
+  {
+    location: 'בראט (לינה 18.9)',
+    wineries: [
+      { name: 'Çobo Winery', note: 'כ-25-30 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJo2pQjs2gWhMR-LwzH5Jkk3s' }
+    ]
+  },
+  {
+    location: 'טירנה (לינה 24.9)',
+    wineries: [
+      { name: 'Kantina Binjakët', note: 'בעיר עצמה, כ-5-10 דק\'', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJBdQT49YxUBMROspiM50lipw' },
+      { name: 'Vila Shehi Winery (וורה)', note: 'כ-20-25 דק\' נסיעה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJAeIrf4EvUBMR8udtW9RvUo8' }
+    ]
+  },
+  {
+    location: 'בדרך מטירנה לבודווה (25.9) — ליד פודגוריצה',
+    wineries: [
+      { name: 'Wine Cellar Šipčanik', note: 'סטייה קצרה מהכביש הראשי', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ0xcKRDrsTRMRAVez858sYg4' }
+    ]
+  },
+  {
+    location: 'קוטור (לינה 27–30.9)',
+    wineries: [
+      { name: 'Storia di Pietra', note: 'כ-45-60 דק\' (כולל מעבורת קמנארי-לפטנה)', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJjV_LK_AzTBMRStdpMdGAVtY' },
+      { name: 'Kraken Kotor (מרתף תת-ימי)', note: 'כ-15-20 דק\' נסיעה + מעבר בסירה', mapsUrl: 'https://www.google.com/maps/place/?q=place_id:ChIJ-amgyoI1TBMRRYL_1BbyIwE' }
+    ]
+  }
+];
+
+function renderWineries() {
+  wineriesListEl.innerHTML = '';
+  WINERIES_BY_LOCATION.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'winery-group';
+
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'winery-group-title';
+    titleEl.textContent = group.location;
+    groupEl.appendChild(titleEl);
+
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'winery-cards';
+
+    group.wineries.forEach(winery => {
+      const card = document.createElement('div');
+      card.className = 'winery-card';
+      card.innerHTML = `
+        <p class="winery-name">${escapeHtml(winery.name)}</p>
+        <p class="winery-note">${escapeHtml(winery.note)}</p>
+        <a href="${escapeHtml(winery.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary winery-maps-btn">פתח בגוגל מפות 🗺️</a>
+        <small class="winery-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
+      `;
+      cardsEl.appendChild(card);
+    });
+
+    groupEl.appendChild(cardsEl);
+    wineriesListEl.appendChild(groupEl);
+  });
+}
+
+wineriesBtn.addEventListener('click', () => {
+  tabsRowEl.classList.add('hidden');
+  dayContentEl.classList.add('hidden');
+  overviewMapSection.classList.add('hidden');
+  wineriesSection.classList.remove('hidden');
+});
+
+closeWineriesBtn.addEventListener('click', () => {
+  wineriesSection.classList.add('hidden');
   tabsRowEl.classList.remove('hidden');
   dayContentEl.classList.remove('hidden');
 });
@@ -914,3 +1002,4 @@ resetBtn.addEventListener('click', () => {
 
 // ---------- Init ----------
 render();
+renderWineries();

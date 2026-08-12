@@ -11,3 +11,6 @@ Desktop.ini
 # Local env files (none expected in this static app, but just in case)
 .env
 .env.local
+
+# Local Netlify folder
+.netlify

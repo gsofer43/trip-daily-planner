@@ -189,6 +189,66 @@ body {
   background: var(--surface-2);
 }
 
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.winery-group {
+  margin-bottom: 1.75rem;
+}
+
+.winery-group:last-child {
+  margin-bottom: 0;
+}
+
+.winery-group-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.winery-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.winery-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.winery-name {
+  font-weight: 600;
+  margin: 0;
+}
+
+.winery-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.winery-maps-btn {
+  align-self: flex-start;
+}
+
+.winery-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .day-panel-header {
   display: flex;
   align-items: flex-start;
