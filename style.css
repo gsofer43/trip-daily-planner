@@ -583,6 +583,23 @@ a.btn {
   font-size: 0.78rem;
 }
 
+/* ⚠️ DEV/TEST ONLY — styling for the temporary weather-pipeline test button/result box.
+   Safe to delete this rule block once the button (see index.html/app.js) is removed. */
+.weather-test-btn {
+  margin-top: 0.5rem;
+  border-style: dashed;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.weather-test-result {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
 .weather-days {
   display: flex;
   flex-direction: column;

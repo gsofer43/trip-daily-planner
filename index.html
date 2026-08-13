@@ -72,6 +72,15 @@
 
   <div class="weather-block">
     <button id="weatherBtn" class="btn btn-ghost">🌤️ עדכון מזג אוויר</button>
+
+    <!-- ⚠️ DEV/TEST ONLY — temporary aid to verify the fetch→parse→clothing-tip→display
+         pipeline against today's real date (in range) instead of the trip dates (still out
+         of Open-Meteo's 16-day range). Safe to delete this button + #weatherTestResult, the
+         matching JS block in app.js, and the .weather-test-* rules in style.css once no
+         longer needed — see the matching comment in app.js. -->
+    <button id="weatherTestBtn" class="btn btn-ghost weather-test-btn" title="בדיקת כל שרשרת התחזית מול תאריך של היום (לא תאריכי הטיול) — כלי בדיקה זמני למפתחים">🧪 בדיקת תחזית (היום)</button>
+    <div id="weatherTestResult" class="weather-status weather-test-result hidden"></div>
+
     <p id="weatherStatus" class="weather-status"></p>
     <div id="weatherList" class="weather-days"></div>
   </div>

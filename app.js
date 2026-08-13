@@ -1410,6 +1410,58 @@ async function refreshAllWeather() {
 
 weatherBtn.addEventListener('click', refreshAllWeather);
 
+// ============================================================
+// ⚠️ DEV/TEST ONLY — temporary aid to verify the weather pipeline (fetch → parse → clothing
+// tip → display) end-to-end *before* real trip dates are within Open-Meteo's 16-day window.
+// Runs the exact same fetchDayWeather()/weatherRowContent() already built above, just against
+// today's real date and a hardcoded existing location (Kotor) instead of a trip day. The
+// result is written into weatherCache only long enough to reuse weatherRowContent's
+// formatting, then deleted immediately (synchronously, before any other code can run) so it
+// never lingers to get swept into a later saveWeatherCache() call — nothing test-related
+// touches localStorage/backups.
+// Remove this whole block (+ #weatherTestBtn/#weatherTestResult in index.html + the
+// .weather-test-* CSS rules in style.css) once no longer needed.
+// ============================================================
+const WEATHER_TEST_LOCATION = { lat: 42.4247, lng: 18.7712 }; // קואורדינטות קוטור (כמו בצ'ק אין בקוטור ב-defaultData)
+
+const weatherTestBtn = document.getElementById('weatherTestBtn');
+const weatherTestResultEl = document.getElementById('weatherTestResult');
+
+function formatTodayAsDdMm() {
+  const now = new Date();
+  return `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+weatherTestBtn.addEventListener('click', async () => {
+  weatherTestBtn.disabled = true;
+  weatherTestResultEl.className = 'weather-status weather-test-result';
+  weatherTestResultEl.classList.remove('hidden');
+  weatherTestResultEl.textContent = 'בודק...';
+
+  // "יום" מזויף שקיים רק כאן — תאריך אמיתי של היום + נקודת קוטור — כדי להריץ בדיוק את אותה
+  // שרשרת הקוד שלמעלה, הפעם על תאריך שבאמת נמצא בטווח 16 הימים של Open-Meteo.
+  const testDay = {
+    id: 'weather-test-today',
+    date: formatTodayAsDdMm(),
+    stops: [{ time: '12:00', lat: WEATHER_TEST_LOCATION.lat, lng: WEATHER_TEST_LOCATION.lng }]
+  };
+
+  const forecast = await fetchDayWeather(testDay);
+  weatherTestBtn.disabled = false;
+
+  if (!forecast) {
+    weatherTestResultEl.textContent = '⚠️ שגיאה: לא נוצר יום בדיקה תקין.';
+    return;
+  }
+
+  weatherCache[testDay.id] = { forecast, fetchedAt: Date.now() };
+  const { text, className } = weatherRowContent(testDay);
+  delete weatherCache[testDay.id]; // ניקוי מיידי — לא משאירים עקבות ב-cache המשותף
+
+  weatherTestResultEl.textContent = `✅ תוצאת בדיקה (קוטור, היום): ${text}`;
+  weatherTestResultEl.classList.add(className);
+});
+
 // ---------- Special full-width sections (overview map / wineries / hotels) ----------
 // כל הכפתורים האלה חולקים מצב "תצוגה מיוחדת" אחת: פתיחת אחת סוגרת את האחרות אוטומטית.
 function hideAllSpecialSections() {
