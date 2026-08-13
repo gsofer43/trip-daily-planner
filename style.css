@@ -451,6 +451,8 @@ a.btn {
   padding: 1.5rem;
   width: 100%;
   max-width: 420px;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   box-shadow: var(--shadow);
 }
 
