@@ -22,7 +22,7 @@ function uid(prefix) {
 
 function defaultData() {
   return {
-    tripTitle: 'מסלול טיול: אלבניה ומונטנגרו',
+    tripTitle: 'מסלול טיול: אלבניה ומונטנגרו 2026',
     tripSubtitle: '11 בספטמבר – 2 באוקטובר 2026',
     days: [
       {
