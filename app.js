@@ -904,6 +904,15 @@ cancelDayBtn.addEventListener('click', closeDayModal);
 dayModal.addEventListener('click', e => { if (e.target === dayModal) closeDayModal(); });
 addDayBtn.addEventListener('click', () => openDayModal());
 
+// סגירת המודאל הפתוח (הוספת/עריכת תחנה, הוספת/עריכת יום, מידע מוויקיפדיה) במקש Escape,
+// בנוסף ללחיצה על הרקע הכהה או על כפתור הסגירה/ביטול הייעודי.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!stopModal.classList.contains('hidden')) closeStopModal();
+  else if (!dayModal.classList.contains('hidden')) closeDayModal();
+  else if (!infoModal.classList.contains('hidden')) closeInfoModal();
+});
+
 function deleteDay(dayId) {
   const day = state.data.days.find(d => d.id === dayId);
   if (!day) return;
