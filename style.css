@@ -607,6 +607,12 @@ a.btn {
   font-size: 0.9rem;
 }
 
+.weather-day-date {
+  font-weight: normal;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .weather-note {
   font-size: 0.85rem;
   color: var(--text);

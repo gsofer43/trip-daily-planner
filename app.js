@@ -1177,16 +1177,19 @@ function renderPackingList() {
 }
 
 // ---------- Weather forecast (🌤️ עדכון מזג אוויר, Open-Meteo, no API key) ----------
-// Weather is fetched per day using that day's "anchor" station (getDayAnchorStop, already
-// used by the overview map) — the first stop by time that has coordinates. Open-Meteo's
-// free forecast endpoint only returns real data up to ~16 days out, so days further away
-// than that just show a "not available yet" message instead of an error.
+// Weather is fetched per *location group*, not per day (see getWeatherGroups below) — each
+// group picks one representative day, and that day's "anchor" station (getDayAnchorStop,
+// already used by the overview map — the first stop by time that has coordinates) is what
+// actually gets queried. Open-Meteo's free forecast endpoint only returns real data up to
+// ~16 days out, so days further away than that just show a "not available yet" message
+// instead of an error.
 // The cache is stored separately from state.data (its own localStorage key), keyed by day
 // id, because it's ephemeral/derived data — not something the user needs backed up/restored
 // with the rest of the trip plan. Page loads only ever read the cache; a fresh fetch happens
 // only when the button is clicked.
 const WEATHER_CACHE_KEY = 'travelPlannerWeatherCache';
 const WEATHER_FORECAST_MAX_DAYS_AHEAD = 16; // Open-Meteo's free daily forecast horizon
+const WEATHER_GROUP_MERGE_KM = 8; // מרחק מרבי (ק"מ) בין לינות ימים סמוכים כדי לראות בהם אותו בסיס
 
 function loadWeatherCache() {
   try {
@@ -1226,8 +1229,70 @@ function daysFromToday(isoDate) {
   return Math.round((target - today) / 86400000);
 }
 
-function getWeatherRelevantDays() {
-  return state.data.days.filter(day => getDayAnchorStop(day) && getDayIsoDate(day));
+// נקודת הלינה של היום — התחנה האחרונה (לפי שעה) עם קואורדינטות. בשונה מ-getDayAnchorStop
+// (התחנה הראשונה, המשמשת למפת הימים/המפה הכללית), זו משמשת רק כאן כדי לקבץ ימים סמוכים
+// לפי היכן באמת לנים באותו לילה.
+function getDayOvernightStop(day) {
+  const sorted = [...day.stops].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (typeof sorted[i].lat === 'number' && typeof sorted[i].lng === 'number') return sorted[i];
+  }
+  return null;
+}
+
+// מרחק גיאוגרפי (ק"מ, נוסחת האוורסין) בין שתי נקודות — משמש רק לקיבוץ ימים לבסיסים, לא
+// לשליפת התחזית עצמה.
+function haversineKm(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// מנקה סיומת נפוצה כמו "— יום 2" / "— יום רגוע" מכותרת היום, לשם בסיס נקי יותר בתצוגה.
+// אם התבנית לא מתאימה, הכותרת המקורית מוצגת כמות שהיא.
+function cleanGroupLabel(title) {
+  const match = /^(.*?)\s*—\s*יום.*$/.exec(title || '');
+  return match ? match[1].trim() : title;
+}
+
+// מקבץ ימים סמוכים שנקודת הלינה שלהם קרובה (עד WEATHER_GROUP_MERGE_KM) לשורה אחת לכל
+// "בסיס" — כדי שמזג האוויר יוצג כרשימה קצרה של התחנות המרכזיות (כמו בעמוד היקבים/המלונות)
+// ולא שורה נפרדת לכל אחד מהימים. יום בלי קואורדינטות/תאריך תקין לא מקבל שורה, ובנוסף
+// עוצר את הקיבוץ (כדי לא לגשר בטעות בין שני בסיסים שונים משני צדדיו — למשל יום שטרם תוכנן).
+// כל קבוצה נשלפת ומטמינה תחת ה-id של היום המייצג האחרון בה (repDay), כמו קודם.
+function getWeatherGroups() {
+  const groups = [];
+  let current = null;
+
+  state.data.days.forEach(day => {
+    const location = getDayOvernightStop(day);
+    const isoDate = getDayIsoDate(day);
+    if (!location || !isoDate) {
+      current = null;
+      return;
+    }
+    if (current && haversineKm(current.lastLocation, location) <= WEATHER_GROUP_MERGE_KM) {
+      current.days.push(day);
+      current.lastLocation = location;
+    } else {
+      current = { days: [day], lastLocation: location };
+      groups.push(current);
+    }
+  });
+
+  return groups.map(group => {
+    const firstDay = group.days[0];
+    const lastDay = group.days[group.days.length - 1];
+    return {
+      repDay: lastDay,
+      label: cleanGroupLabel(lastDay.title),
+      dateRange: group.days.length > 1 ? `${firstDay.date}–${lastDay.date}` : firstDay.date
+    };
+  });
 }
 
 // Plain, deterministic clothing note based only on the numbers the API returned — no guessing.
@@ -1293,20 +1358,20 @@ function weatherRowContent(day) {
 }
 
 function renderWeatherList() {
-  const relevantDays = getWeatherRelevantDays();
+  const groups = getWeatherGroups();
   weatherListEl.innerHTML = '';
 
-  if (relevantDays.length === 0) {
+  if (groups.length === 0) {
     weatherListEl.innerHTML = '<div class="map-fallback">אין ימים עם קואורדינטות לתחזית מזג אוויר.</div>';
     return;
   }
 
-  relevantDays.forEach(day => {
-    const { text, className } = weatherRowContent(day);
+  groups.forEach(group => {
+    const { text, className } = weatherRowContent(group.repDay);
     const row = document.createElement('div');
     row.className = 'weather-day';
     row.innerHTML = `
-      <div class="weather-day-title">${escapeHtml(day.title)}${day.date ? ` <span class="tab-date">(${escapeHtml(day.date)})</span>` : ''}</div>
+      <div class="weather-day-title">${escapeHtml(group.label)} <span class="weather-day-date">(${escapeHtml(group.dateRange)})</span></div>
       <div class="${className}">${escapeHtml(text)}</div>
     `;
     weatherListEl.appendChild(row);
@@ -1320,13 +1385,13 @@ function computeLastWeatherUpdateText() {
 }
 
 async function refreshAllWeather() {
-  const relevantDays = getWeatherRelevantDays();
-  if (relevantDays.length === 0) return;
+  const groups = getWeatherGroups();
+  if (groups.length === 0) return;
 
   weatherBtn.disabled = true;
   weatherStatusEl.textContent = 'טוען תחזית...';
 
-  const results = await Promise.all(relevantDays.map(async day => ({ day, forecast: await fetchDayWeather(day) })));
+  const results = await Promise.all(groups.map(async group => ({ day: group.repDay, forecast: await fetchDayWeather(group.repDay) })));
 
   let successCount = 0;
   results.forEach(({ day, forecast }) => {
