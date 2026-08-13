@@ -728,6 +728,30 @@ function cleanPlaceNameForWiki(place) {
   return name;
 }
 
+// תבניות של פעילות/לוגיסטיקה כלליות (איסוף/החזרת רכב, צ'ק אין, ארוחות, זמן חופשי, יציאה/
+// הגעה/נסיעה, טיסה, לינה, הליכה קצרה וכו') — לא שמות של מקום אמיתי. עבור תחנות שתואמות,
+// מדלגים לגמרי על חיפוש בוויקיפדיה, גם אם יש קואורדינטות: חיפוש גיאוגרפי/טקסטואלי סביב
+// תחנת לוגיסטיקה נוטה למצוא התאמת "הקרוב ביותר" שגויה ולא רלוונטית (למשל "איסוף הרכב
+// בטיווט" התאים בפועל ל"אצטדיון כדורגל" שנמצא במקרה קרוב לקואורדינטות) — עדיף לא להציג
+// כפתור מידע כלל מאשר להציג משהו שגוי. רק תחנות שהן בבירור מקום אמיתי (עיר, מצודה, קניון,
+// אתר היסטורי, תצפית, יקב...) ממשיכות לנסות חיפוש.
+const GENERIC_STOP_PATTERNS = [
+  /איסוף.*רכב/, /החזרת.*רכב/,             // איסוף/החזרת רכב
+  /צ['׳]?ק[\s-]?אין/,                      // צ'ק אין
+  /ארוחת (בוקר|צהריים|ערב)/,               // ארוחה
+  /זמן (חופשי|פנוי)/,                      // זמן חופשי/פנוי
+  /יום (חופשי|פנוי|רגוע|חופים|מנוחה)/,     // יום חופשי/פנוי/רגוע/חופים/מנוחה
+  /יציאה/, /הגעה/, /נסיעה/, /חזרה ל/,       // יציאה/הגעה/נסיעה/חזרה
+  /טיסה/, /לינה/,                          // טיסה/לינה
+  /טיול קצר/, /הליכה (ב|קצר)/, /סיבוב ב/,   // הליכה/סיבוב קצר
+  /עדיין לא/                               // הערות מטא כמו "עדיין לא סגור"
+];
+
+function isGenericLogisticsStop(placeName) {
+  const cleaned = cleanPlaceNameForWiki(placeName);
+  return GENERIC_STOP_PATTERNS.some(pattern => pattern.test(cleaned));
+}
+
 async function fetchWikipediaSummaryFromLang(lang, title) {
   const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
@@ -782,6 +806,8 @@ async function fetchWikipediaSummaryByTitle(title) {
 }
 
 function getWikiInfoForPlace(stop) {
+  if (isGenericLogisticsStop(stop.place)) return Promise.resolve(null); // לוגיסטיקה/פעילות כללית, לא מקום — ראו הערה למעלה
+
   const hasCoords = typeof stop.lat === 'number' && typeof stop.lng === 'number';
   const cleanedName = cleanPlaceNameForWiki(stop.place);
   const key = hasCoords ? `geo:${stop.lat.toFixed(4)},${stop.lng.toFixed(4)}` : `name:${cleanedName.toLowerCase()}`;
@@ -799,6 +825,7 @@ function getWikiInfoForPlace(stop) {
 }
 
 function setupStopInfoButton(button, stop) {
+  if (isGenericLogisticsStop(stop.place)) return; // לוגיסטיקה/פעילות כללית — לא מנסים בכלל
   const hasCoords = typeof stop.lat === 'number' && typeof stop.lng === 'number';
   if (!hasCoords && !cleanPlaceNameForWiki(stop.place)) return;
   getWikiInfoForPlace(stop).then(info => {
@@ -1421,11 +1448,19 @@ weatherBtn.addEventListener('click', refreshAllWeather);
 // touches localStorage/backups.
 // Remove this whole block (+ #weatherTestBtn/#weatherTestResult in index.html + the
 // .weather-test-* CSS rules in style.css) once no longer needed.
+//
+// Hidden from regular visitors by default — only shown when the page URL has a `?dev` flag
+// (e.g. https://trip-daily-planner.netlify.app/?dev), so it doesn't look like broken/unfinished
+// UI to a first-time visitor. Open with ?dev whenever we want to use it ourselves.
 // ============================================================
 const WEATHER_TEST_LOCATION = { lat: 42.4247, lng: 18.7712 }; // קואורדינטות קוטור (כמו בצ'ק אין בקוטור ב-defaultData)
 
 const weatherTestBtn = document.getElementById('weatherTestBtn');
 const weatherTestResultEl = document.getElementById('weatherTestResult');
+
+if (new URLSearchParams(window.location.search).has('dev')) {
+  weatherTestBtn.classList.remove('hidden'); // מוסתר כברירת מחדל ב-index.html; נחשף רק עם ?dev
+}
 
 function formatTodayAsDdMm() {
   const now = new Date();
