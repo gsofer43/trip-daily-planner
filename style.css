@@ -572,6 +572,148 @@ a.btn {
   cursor: default;
 }
 
+/* ---------- Weather forecast (🌤️ עדכון מזג אוויר, inside the packing page) ---------- */
+.weather-block {
+  margin-bottom: 1.5rem;
+}
+
+.weather-status {
+  margin: 0.5rem 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.weather-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.weather-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.weather-day-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.weather-note {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.weather-note-muted {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.weather-note-error {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+/* ---------- Packing checklist (🎒 רשימת ציוד) ---------- */
+.packing-disclaimer {
+  margin-bottom: 1rem;
+}
+
+.packing-progress {
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 1.25rem;
+}
+
+.packing-category {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.packing-category-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.packing-category-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.packing-category-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.packing-items {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.packing-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.packing-item input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.packing-item-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+.packing-item.packed .packing-item-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.packing-add-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.packing-add-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
 @media (max-width: 480px) {
   .app-header, .tabs-row, .day-content, .overview-map-section { padding-left: 1rem; padding-right: 1rem; }
   .hero { margin-left: 1rem; margin-right: 1rem; }

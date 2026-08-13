@@ -214,7 +214,8 @@ function defaultData() {
           { id: uid('stop'), time: '10:00', place: 'טיסה מטיווט', note: 'יציאה לשדה התעופה והחזרת הרכב בהתאם לשעת הטיסה — יום עזיבה, סוף הטיול', lat: 42.4047, lng: 18.7238 }
         ]
       }
-    ]
+    ],
+    packingList: defaultPackingCategories()
   };
 }
 
@@ -301,6 +302,16 @@ const hotelsBtn = document.getElementById('hotelsBtn');
 const hotelsSection = document.getElementById('hotelsSection');
 const closeHotelsBtn = document.getElementById('closeHotelsBtn');
 const hotelsListEl = document.getElementById('hotelsList');
+
+const packingBtn = document.getElementById('packingBtn');
+const packingSection = document.getElementById('packingSection');
+const closePackingBtn = document.getElementById('closePackingBtn');
+const packingListEl = document.getElementById('packingList');
+const packingProgressEl = document.getElementById('packingProgress');
+
+const weatherBtn = document.getElementById('weatherBtn');
+const weatherStatusEl = document.getElementById('weatherStatus');
+const weatherListEl = document.getElementById('weatherList');
 
 const infoModal = document.getElementById('infoModal');
 const infoModalTitle = document.getElementById('infoModalTitle');
@@ -996,12 +1007,351 @@ function renderHotels() {
   renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️');
 }
 
+// ---------- Packing checklist (🎒 רשימת ציוד) ----------
+// Category choice and starting items are informed by two things:
+// 1) The actual day data in defaultData() above: the two Theth days and the Durmitor/
+//    Žabljak day (draft) are mountain/hiking days (marked trails, cooler evenings); Sarandë
+//    + Ksamil, Himarë, and Budva + Sveti Stefan are beach/coastal days; Tirana, Shkodër,
+//    Berat and Kotor's old town are city days; most of the remaining days are driving/
+//    transit between them.
+// 2) General historical climate norms for the Albanian/Montenegrin coast and mountains in
+//    mid-September–early October: mild/warm coastal days, cooler mountain evenings, and
+//    occasional rain — not a real-time forecast (see the disclaimer shown in the UI).
+// The list itself lives in state.data.packingList (same localStorage object/backup JSON as
+// everything else) and every item is freely editable/deletable/addable by the user.
+function defaultPackingCategories() {
+  const cat = (name, items) => ({
+    id: uid('cat'),
+    name,
+    items: items.map(text => ({ id: uid('item'), text, packed: false }))
+  });
+
+  return [
+    cat('מסמכים', [
+      'דרכון + עותק דיגיטלי/צילום',
+      'כרטיסי טיסה והזמנות',
+      'ביטוח נסיעות',
+      'רישיון נהיגה בינלאומי + פרטי השכרת הרכב',
+      'אישורי הזמנת לינה',
+      'כרטיס אשראי בינלאומי + מזומן ביורו'
+    ]),
+    cat('ביגוד יום/ביגוד קר', [
+      'חולצות קצרות',
+      'שורטים / מכנסיים קלים',
+      'מכנסיים ארוכים',
+      'שכבת פליז או סווטשירט לערבים',
+      'מעיל רוח/גשם קל',
+      'כובע ומשקפי שמש',
+      'גרביים ותחתונים לכל הימים',
+      'פיג\'מה חמה יותר (לילות בהרים)'
+    ]),
+    cat('טיולים/הרים', [
+      'נעלי הליכה סגורות',
+      'תיק גב יומי',
+      'בקבוק מים רב-פעמי',
+      'ז\'קט חם ועמיד במים (לת\'ת\' ולז\'בליאק)',
+      'כובע חם קל לערב',
+      'פנס ראש',
+      'פלסטרים לשלפוחיות'
+    ]),
+    cat('חוף', [
+      'שני בגדי ים',
+      'מגבת חוף מהירת ייבוש',
+      'קרם הגנה עמיד במים (Reef-safe)',
+      'משקפי שחייה',
+      'כפכפים/סנדלים',
+      'שקית יבשה קטנה לטלפון/ארנק'
+    ]),
+    cat('טיפוח', [
+      'מברשת ומשחת שיניים',
+      'דאודורנט',
+      'שמפו/סבון בגודל נסיעה',
+      'קרם לחות',
+      'קרם הגנה יומיומי',
+      'תרסיס יתושים'
+    ]),
+    cat('טכני', [
+      'מטענים לטלפון ולמצלמה',
+      'סוללת גיבוי (Power bank)',
+      'מתאם שקע לאלבניה/מונטנגרו',
+      'כבל מטען לרכב',
+      'אוזניות'
+    ]),
+    cat('תרופות/עזרה ראשונה', [
+      'תרופות אישיות קבועות',
+      'משכך כאבים',
+      'תרופה נגד בחילת נסיעה',
+      'פלסטרים וחיטוי לפצעים',
+      'תרופה נגד שלשולים',
+      'אנטיהיסטמין'
+    ]),
+    cat('אחר', [
+      'שקיות לכביסה מלוכלכת',
+      'כרית נסיעה',
+      'עותק מודפס/שמור של המסלול'
+    ])
+  ];
+}
+
+// מבטיח שלנתונים קיימים (localStorage ישן / גיבוי מיובא) יש packingList — כדי שהעמוד
+// יעבוד גם עם נתונים שנשמרו לפני שהתכונה הזו נוספה.
+function ensurePackingList() {
+  if (!Array.isArray(state.data.packingList)) {
+    state.data.packingList = defaultPackingCategories();
+    saveData(state.data);
+  }
+  return state.data.packingList;
+}
+
+function renderPackingList() {
+  const categories = ensurePackingList();
+  packingListEl.innerHTML = '';
+
+  let totalItems = 0;
+  let packedItems = 0;
+
+  categories.forEach(category => {
+    totalItems += category.items.length;
+    packedItems += category.items.filter(i => i.packed).length;
+
+    const card = document.createElement('div');
+    card.className = 'packing-category';
+
+    const header = document.createElement('div');
+    header.className = 'packing-category-header';
+    header.innerHTML = `
+      <h3 class="packing-category-title">${escapeHtml(category.name)}</h3>
+      <span class="packing-category-count">${category.items.filter(i => i.packed).length}/${category.items.length}</span>
+    `;
+    card.appendChild(header);
+
+    if (category.items.length > 0) {
+      const list = document.createElement('ul');
+      list.className = 'packing-items';
+      category.items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'packing-item' + (item.packed ? ' packed' : '');
+        li.innerHTML = `
+          <input type="checkbox" ${item.packed ? 'checked' : ''}>
+          <span class="packing-item-text">${escapeHtml(item.text)}</span>
+          <button type="button" class="icon-btn" title="מחיקה">🗑️</button>
+        `;
+        li.querySelector('input').addEventListener('change', e => {
+          item.packed = e.target.checked;
+          saveData(state.data);
+          renderPackingList();
+        });
+        li.querySelector('button').addEventListener('click', () => {
+          category.items = category.items.filter(i => i.id !== item.id);
+          saveData(state.data);
+          renderPackingList();
+        });
+        list.appendChild(li);
+      });
+      card.appendChild(list);
+    }
+
+    const addForm = document.createElement('form');
+    addForm.className = 'packing-add-row';
+    addForm.innerHTML = `
+      <input type="text" class="packing-add-input" placeholder="הוספת פריט...">
+      <button type="submit" class="btn btn-ghost">+</button>
+    `;
+    addForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = addForm.querySelector('input');
+      const text = input.value.trim();
+      if (!text) return;
+      category.items.push({ id: uid('item'), text, packed: false });
+      saveData(state.data);
+      renderPackingList();
+    });
+    card.appendChild(addForm);
+
+    packingListEl.appendChild(card);
+  });
+
+  packingProgressEl.textContent = totalItems > 0
+    ? `נארזו ${packedItems} מתוך ${totalItems} פריטים`
+    : 'אין עדיין פריטים ברשימה.';
+}
+
+// ---------- Weather forecast (🌤️ עדכון מזג אוויר, Open-Meteo, no API key) ----------
+// Weather is fetched per day using that day's "anchor" station (getDayAnchorStop, already
+// used by the overview map) — the first stop by time that has coordinates. Open-Meteo's
+// free forecast endpoint only returns real data up to ~16 days out, so days further away
+// than that just show a "not available yet" message instead of an error.
+// The cache is stored separately from state.data (its own localStorage key), keyed by day
+// id, because it's ephemeral/derived data — not something the user needs backed up/restored
+// with the rest of the trip plan. Page loads only ever read the cache; a fresh fetch happens
+// only when the button is clicked.
+const WEATHER_CACHE_KEY = 'travelPlannerWeatherCache';
+const WEATHER_FORECAST_MAX_DAYS_AHEAD = 16; // Open-Meteo's free daily forecast horizon
+
+function loadWeatherCache() {
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveWeatherCache(cache) {
+  localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cache));
+}
+
+let weatherCache = loadWeatherCache();
+
+// day.date is stored as "DD/MM" (e.g. "13/09"); combine with the trip year (read from
+// tripSubtitle, e.g. "...2026") to get a real calendar date for the forecast request.
+function getTripYear() {
+  const match = /(\d{4})/.exec(state.data.tripSubtitle || '');
+  return match ? parseInt(match[1], 10) : new Date().getFullYear();
+}
+
+function getDayIsoDate(day) {
+  const match = /^(\d{1,2})\/(\d{1,2})$/.exec((day.date || '').trim());
+  if (!match) return null;
+  const dd = match[1].padStart(2, '0');
+  const mm = match[2].padStart(2, '0');
+  return `${getTripYear()}-${mm}-${dd}`;
+}
+
+function daysFromToday(isoDate) {
+  const target = new Date(isoDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
+
+function getWeatherRelevantDays() {
+  return state.data.days.filter(day => getDayAnchorStop(day) && getDayIsoDate(day));
+}
+
+// Plain, deterministic clothing note based only on the numbers the API returned — no guessing.
+function buildClothingNote(tempMin, precipProb) {
+  if (typeof precipProb === 'number' && precipProb > 40) return 'כדאי לקחת מעיל גשם';
+  if (typeof tempMin === 'number' && tempMin < 12) return 'שכבה חמה לערב';
+  return 'מזג אוויר נעים';
+}
+
+async function fetchDayWeather(day) {
+  const anchor = getDayAnchorStop(day);
+  const isoDate = getDayIsoDate(day);
+  if (!anchor || !isoDate) return null; // nothing to fetch for this day
+
+  if (daysFromToday(isoDate) > WEATHER_FORECAST_MAX_DAYS_AHEAD) {
+    return { status: 'too-far' };
+  }
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${anchor.lat}&longitude=${anchor.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('bad status ' + res.status);
+    const data = await res.json();
+    const daily = data.daily;
+    if (!daily || !Array.isArray(daily.temperature_2m_max) || daily.temperature_2m_max.length === 0) {
+      return { status: 'no-data' };
+    }
+    return {
+      status: 'ok',
+      tempMax: daily.temperature_2m_max[0],
+      tempMin: daily.temperature_2m_min[0],
+      precipProb: Array.isArray(daily.precipitation_probability_max) ? daily.precipitation_probability_max[0] : undefined
+    };
+  } catch (err) {
+    console.warn(`שליפת תחזית נכשלה עבור "${day.title}"`, err);
+    return { status: 'error' };
+  }
+}
+
+function weatherRowContent(day) {
+  const cached = weatherCache[day.id];
+  if (!cached || !cached.forecast) {
+    return { text: 'לחצו על "עדכון מזג אוויר" לתחזית', className: 'weather-note-muted' };
+  }
+  const forecast = cached.forecast;
+  switch (forecast.status) {
+    case 'ok': {
+      const note = buildClothingNote(forecast.tempMin, forecast.precipProb);
+      const precipText = typeof forecast.precipProb === 'number' ? `${Math.round(forecast.precipProb)}% סיכוי לגשם` : 'אין נתוני גשם';
+      return {
+        text: `${Math.round(forecast.tempMax)}°/${Math.round(forecast.tempMin)}° · ${precipText} · ${note}`,
+        className: 'weather-note'
+      };
+    }
+    case 'too-far':
+      return { text: 'עוד לא זמין — נסה שוב קרוב יותר לתאריך', className: 'weather-note-muted' };
+    case 'no-data':
+      return { text: 'אין נתוני תחזית זמינים ליום זה', className: 'weather-note-muted' };
+    case 'error':
+    default:
+      return { text: 'שליפת התחזית נכשלה (יתכן שאין חיבור לאינטרנט)', className: 'weather-note-error' };
+  }
+}
+
+function renderWeatherList() {
+  const relevantDays = getWeatherRelevantDays();
+  weatherListEl.innerHTML = '';
+
+  if (relevantDays.length === 0) {
+    weatherListEl.innerHTML = '<div class="map-fallback">אין ימים עם קואורדינטות לתחזית מזג אוויר.</div>';
+    return;
+  }
+
+  relevantDays.forEach(day => {
+    const { text, className } = weatherRowContent(day);
+    const row = document.createElement('div');
+    row.className = 'weather-day';
+    row.innerHTML = `
+      <div class="weather-day-title">${escapeHtml(day.title)}${day.date ? ` <span class="tab-date">(${escapeHtml(day.date)})</span>` : ''}</div>
+      <div class="${className}">${escapeHtml(text)}</div>
+    `;
+    weatherListEl.appendChild(row);
+  });
+}
+
+function computeLastWeatherUpdateText() {
+  const timestamps = Object.values(weatherCache).map(e => e && e.fetchedAt).filter(Boolean);
+  if (timestamps.length === 0) return '';
+  return `עודכן לאחרונה: ${new Date(Math.max(...timestamps)).toLocaleString('he-IL')}`;
+}
+
+async function refreshAllWeather() {
+  const relevantDays = getWeatherRelevantDays();
+  if (relevantDays.length === 0) return;
+
+  weatherBtn.disabled = true;
+  weatherStatusEl.textContent = 'טוען תחזית...';
+
+  const results = await Promise.all(relevantDays.map(async day => ({ day, forecast: await fetchDayWeather(day) })));
+
+  let successCount = 0;
+  results.forEach(({ day, forecast }) => {
+    if (!forecast) return;
+    weatherCache[day.id] = { forecast, fetchedAt: Date.now() };
+    if (forecast.status === 'ok') successCount++;
+  });
+  saveWeatherCache(weatherCache);
+
+  weatherBtn.disabled = false;
+  weatherStatusEl.textContent = successCount > 0
+    ? computeLastWeatherUpdateText()
+    : 'לא הצלחנו לעדכן תחזית כרגע (יתכן שאין חיבור לאינטרנט, או שכל הימים עדיין רחוקים מדי).';
+  renderWeatherList();
+}
+
+weatherBtn.addEventListener('click', refreshAllWeather);
+
 // ---------- Special full-width sections (overview map / wineries / hotels) ----------
 // כל הכפתורים האלה חולקים מצב "תצוגה מיוחדת" אחת: פתיחת אחת סוגרת את האחרות אוטומטית.
 function hideAllSpecialSections() {
   overviewMapSection.classList.add('hidden');
   wineriesSection.classList.add('hidden');
   hotelsSection.classList.add('hidden');
+  packingSection.classList.add('hidden');
 }
 
 function openSpecialSection(section) {
@@ -1029,6 +1379,9 @@ closeWineriesBtn.addEventListener('click', closeSpecialSections);
 hotelsBtn.addEventListener('click', () => openSpecialSection(hotelsSection));
 closeHotelsBtn.addEventListener('click', closeSpecialSections);
 
+packingBtn.addEventListener('click', () => openSpecialSection(packingSection));
+closePackingBtn.addEventListener('click', closeSpecialSections);
+
 // ---------- Backup: export / import / reset ----------
 exportBtn.addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
@@ -1055,6 +1408,8 @@ importInput.addEventListener('change', () => {
       saveData(state.data);
       state.activeDayId = state.data.days[0] ? state.data.days[0].id : null;
       render();
+      renderPackingList();
+      renderWeatherList();
     } catch (e) {
       alert('קובץ לא תקין. ודאו שזהו קובץ גיבוי שיוצא מהאפליקציה הזו.');
     } finally {
@@ -1070,9 +1425,14 @@ resetBtn.addEventListener('click', () => {
   saveData(state.data);
   state.activeDayId = state.data.days[0] ? state.data.days[0].id : null;
   render();
+  renderPackingList();
+  renderWeatherList();
 });
 
 // ---------- Init ----------
 render();
 renderWineries();
 renderHotels();
+renderPackingList();
+renderWeatherList();
+weatherStatusEl.textContent = computeLastWeatherUpdateText();
