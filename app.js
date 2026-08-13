@@ -1415,7 +1415,12 @@ function renderWeatherList() {
 }
 
 function computeLastWeatherUpdateText() {
-  const timestamps = Object.values(weatherCache).map(e => e && e.fetchedAt).filter(Boolean);
+  // רק תחזיות שבאמת התקבלו (status 'ok') נחשבות ל"עדכון" - אחרת, אם כל הימים עדיין רחוקים
+  // מדי (too-far) או שהשליפה נכשלה, יוצג כאן "עודכן לאחרונה" מטעה על עדכון שבפועל לא הביא
+  // שום נתון אמיתי.
+  const timestamps = Object.values(weatherCache)
+    .filter(e => e && e.forecast && e.forecast.status === 'ok')
+    .map(e => e.fetchedAt);
   if (timestamps.length === 0) return '';
   return `עודכן לאחרונה: ${new Date(Math.max(...timestamps)).toLocaleString('he-IL')}`;
 }
