@@ -25,13 +25,25 @@ const MIN_QUALIFYING_RESULTS = 3;
 // than showing a near-empty list. Deliberately just one retry, not an open-ended expansion.
 const SEARCH_RADII_METERS = [3000, 6000];
 
+const EARTH_RADIUS_METERS = 6371000;
+
+// Straight-line distance in meters between the user's coordinates and a place's location.
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const toRad = deg => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
   const response = await fetch(PLACES_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location',
       // Satisfies the key's HTTP-referrer restriction for this server-to-server call — see
       // file header comment. process.env.URL is Netlify's built-in "primary site URL" var.
       Referer: process.env.URL || process.env.DEPLOY_URL || ''
@@ -63,17 +75,26 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
       placeId: p.id || '',
       rating: typeof p.rating === 'number' ? p.rating : null,
       reviews: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
-      address: p.formattedAddress || ''
+      address: p.formattedAddress || '',
+      distanceMeters: (p.location && typeof p.location.latitude === 'number' && typeof p.location.longitude === 'number')
+        ? haversineMeters(lat, lng, p.location.latitude, p.location.longitude)
+        : null
     }))
     .filter(r => r.name && r.placeId);
 }
 
-// Keeps only restaurants meeting the quality bar, sorted best-first (rating desc, review count
-// as the tiebreaker) — never falls back to the unfiltered list, even if that leaves few/no results.
+// Keeps only restaurants meeting the quality bar (rating/review-count filter, unchanged), then
+// sorts the survivors by distance ascending (closest first) — never falls back to the unfiltered
+// list, even if that leaves few/no results.
 function filterAndSortByQuality(restaurants) {
   return restaurants
     .filter(r => r.rating != null && r.reviews != null && r.rating >= MIN_RATING && r.reviews >= MIN_REVIEWS)
-    .sort((a, b) => (b.rating - a.rating) || (b.reviews - a.reviews));
+    .sort((a, b) => {
+      if (a.distanceMeters == null && b.distanceMeters == null) return 0;
+      if (a.distanceMeters == null) return 1;
+      if (b.distanceMeters == null) return -1;
+      return a.distanceMeters - b.distanceMeters;
+    });
 }
 
 exports.handler = async (event) => {
