@@ -245,6 +245,13 @@ a.btn {
   gap: 0.5rem;
 }
 
+/* כמו .modal.hidden למטה — .place-card מגדיר display: flex משלו, אז .hidden הכללי (display: none)
+   לא מנצח בלי selector ספציפי יותר. נדרש כדי שכרטיס ה-fallback בהטמעות אינסטגרם (instagram-card,
+   שמקבל .hidden כשההטמעה האמיתית מצליחה) יוסתר בפועל. */
+.place-card.hidden {
+  display: none;
+}
+
 .place-name {
   font-weight: 600;
   margin: 0;
@@ -275,7 +282,7 @@ a.btn {
 
 .instagram-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 0.9rem;
   margin-bottom: 1.1rem;
 }
@@ -289,6 +296,17 @@ a.btn {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.1rem 0.55rem;
+}
+
+.instagram-embed-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.instagram-embed-wrap blockquote.instagram-media {
+  margin: 0 !important;
+  min-width: 300px !important;
+  max-width: 100% !important;
 }
 
 .day-panel-header {

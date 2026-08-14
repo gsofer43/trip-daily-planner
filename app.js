@@ -1053,9 +1053,16 @@ function renderHotels() {
 // לא משתמש ב-renderPlaceGroups() כי הכרטיסים כאן שונים מהותית (כיתוב + קישור לאינסטגרם,
 // לא קישור למפות) — אבל משתמש באותם מחלקות CSS (.place-group / .place-card וכו') כדי לשמור
 // על אותה שפה חזותית כמו יקבים/מלונות.
+//
+// עבור type 'post'/'reel' מנסים הטמעה אמיתית (embed.js הרשמי של אינסטגרם) — נטען באופן
+// עצל (lazy) רק כשהטאב נפתח בפועל, לא בטעינת האתר. type 'profile'/'story' תמיד נשארים
+// ככרטיס טקסט פשוט (לא ניתנים להטמעה). אם הטמעה ספציפית לא נטענת בזמן סביר, נופלים חזרה
+// לאותו כרטיס טקסט פשוט — עדיף להראות פחות אבל נכון מאשר widget שבור.
 const INSTAGRAM_TYPE_LABELS = { post: 'פוסט', reel: 'רילס', profile: 'פרופיל', story: 'סטורי' };
+const INSTAGRAM_EMBEDDABLE_TYPES = ['post', 'reel'];
+const INSTAGRAM_EMBED_TIMEOUT_MS = 8000; // לאינסטגרם אין callback הצלחה/כישלון — זמן סביר לפני שנופלים חזרה לכרטיס הפשוט
 
-function buildInstagramCard(item) {
+function buildInstagramPlainCard(item) {
   const card = document.createElement('div');
   card.className = 'place-card instagram-card';
   card.dataset.igType = item.type;
@@ -1066,6 +1073,79 @@ function buildInstagramCard(item) {
     <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">פתיחה באינסטגרם 📸</a>
   `;
   return card;
+}
+
+function buildInstagramEmbedCard(item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'instagram-embed-wrap';
+  const blockquote = document.createElement('blockquote');
+  blockquote.className = 'instagram-media';
+  blockquote.setAttribute('data-instgrm-permalink', item.url);
+  blockquote.setAttribute('data-instgrm-version', '14');
+  wrap.appendChild(blockquote);
+
+  const fallback = buildInstagramPlainCard(item);
+  fallback.classList.add('hidden');
+  wrap.appendChild(fallback);
+
+  queueInstagramEmbed(wrap);
+  return wrap;
+}
+
+function buildInstagramCard(item) {
+  if (INSTAGRAM_EMBEDDABLE_TYPES.includes(item.type)) {
+    return buildInstagramEmbedCard(item);
+  }
+  return buildInstagramPlainCard(item);
+}
+
+// ---------- Lazy loading + fallback for Instagram's embed.js ----------
+let instagramEmbedScriptState = 'unloaded'; // 'unloaded' | 'loading' | 'loaded' | 'error'
+let pendingInstagramEmbeds = [];
+
+function fallbackInstagramEmbedWrap(wrap) {
+  const blockquote = wrap.querySelector('blockquote.instagram-media');
+  const fallback = wrap.querySelector('.instagram-card');
+  if (blockquote) blockquote.classList.add('hidden');
+  if (fallback) fallback.classList.remove('hidden');
+}
+
+function fallbackAllPendingInstagramEmbeds() {
+  pendingInstagramEmbeds.forEach(fallbackInstagramEmbedWrap);
+  pendingInstagramEmbeds = [];
+}
+
+function processPendingInstagramEmbeds() {
+  if (!window.instgrm) { fallbackAllPendingInstagramEmbeds(); return; }
+  const toCheck = pendingInstagramEmbeds;
+  pendingInstagramEmbeds = [];
+  window.instgrm.Embeds.process();
+  toCheck.forEach(wrap => {
+    setTimeout(() => {
+      const rendered = wrap.querySelector('iframe');
+      if (!rendered) fallbackInstagramEmbedWrap(wrap);
+    }, INSTAGRAM_EMBED_TIMEOUT_MS);
+  });
+}
+
+function queueInstagramEmbed(wrapEl) {
+  pendingInstagramEmbeds.push(wrapEl);
+  if (instagramEmbedScriptState === 'loaded') {
+    processPendingInstagramEmbeds();
+    return;
+  }
+  if (instagramEmbedScriptState === 'error') {
+    fallbackAllPendingInstagramEmbeds();
+    return;
+  }
+  if (instagramEmbedScriptState === 'loading') return; // כבר בתור, יטופל כשה-script יטען
+  instagramEmbedScriptState = 'loading';
+  const script = document.createElement('script');
+  script.src = 'https://www.instagram.com/embed.js';
+  script.async = true;
+  script.onload = () => { instagramEmbedScriptState = 'loaded'; processPendingInstagramEmbeds(); };
+  script.onerror = () => { instagramEmbedScriptState = 'error'; fallbackAllPendingInstagramEmbeds(); };
+  document.body.appendChild(script);
 }
 
 function renderInstagram() {
