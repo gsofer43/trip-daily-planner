@@ -12,6 +12,8 @@ A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Alb
 - Never trust automatic text-matching or geo-proximity matching (e.g. Wikipedia lookups) without a relevance/sanity check. Prefer showing nothing over showing something wrong.
 - For any external map link, use Google's modern format `?api=1&query=...&query_place_id=...`, not the older `?q=place_id:...` format — the latter doesn't reliably work on mobile. (See `buildVerifiedMapsUrl()` in the Architecture section below.)
 - Flag tradeoffs and ask before big/risky changes; small additive changes don't need to wait for approval.
+- When asked to do multiple improvements in a loop, always work in bounded rounds (a stated max number), fixing one issue per round, with a separate git commit per fix — never one big autonomous loop with no stopping points.
+- The site being Hebrew-only with no language toggle is intentional, not a bug — never "fix" this unless explicitly asked.
 
 ## Running / developing
 
