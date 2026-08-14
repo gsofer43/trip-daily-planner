@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Albania road trip, built as **plain HTML/CSS/JS with no server and no build tools**. It's `index.html` + `app.js` + `style.css`, deployed as-is to Netlify.
+A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Albania road trip, built as **plain HTML/CSS/JS with no server and no build tools**. It's `index.html` + `app.js` + `style.css`, deployed as-is to Netlify. The one exception is a single Netlify Function (see "Nearby restaurants" below) that proxies one Google Places lookup — everything else is still pure static frontend.
 
 ## Working preferences
 
@@ -34,7 +34,7 @@ There are no lint or test commands configured — verify changes by exercising t
 
 External dependencies are both loaded via CDN in `index.html`, no npm: **Leaflet** (maps) and its CSS.
 
-All external data fetches (Nominatim, Wikipedia, Open-Meteo — see below) are plain client-side `fetch()` calls straight from the browser, no API keys and no backend proxy.
+All external data fetches (Nominatim, Wikipedia, Open-Meteo — see below) are plain client-side `fetch()` calls straight from the browser, no API keys and no backend proxy — the one exception is the Google Places lookup used by "Nearby restaurants" (see below), which deliberately goes through a Netlify Function instead, because that one needs an API key kept secret.
 
 ### Data model & persistence
 
@@ -75,6 +75,18 @@ The packing page also has a **🌤️ עדכון מזג אוויר** button that
 A **🧪 בדיקת תחזית (היום)** dev-only button sits next to it, reusing `fetchDayWeather()`/`weatherRowContent()` unchanged against today's real date and a hardcoded Kotor coordinate (useful before trip dates are within Open-Meteo's 16-day window). It's hidden by default (`hidden` class in `index.html`) and only shown when the page URL has a `?dev` flag — see the `URLSearchParams(...).has('dev')` check near its DOM refs in `app.js`. Its result is written into `weatherCache` only long enough to reuse the display formatting, then deleted synchronously so it never reaches `saveWeatherCache()`/localStorage. It's explicitly flagged DEV/TEST ONLY in all three files with matching removal instructions.
 
 The forecast is fetched and displayed **per location group, not per day** — `getWeatherGroups()` walks `state.data.days` in order and merges consecutive days into one row whenever their *overnight* coordinates (`getDayOvernightStop()`, the last-by-time stop with coordinates — deliberately different from `getDayAnchorStop()`, which is the first-by-time stop and answers "where does the day start," not "where do you sleep") are within `WEATHER_GROUP_MERGE_KM` (8km, via `haversineKm()`) of the previous day's. A day with no coordinates/date both gets no row *and* breaks the current group, so grouping never silently bridges across a gap like the still-unplanned Kotor→Žabljak day. Each group only ever fetches/caches/displays one forecast, keyed by its *last* day (`repDay`) — `fetchDayWeather()`/the cache/the 16-day check are all otherwise untouched. The row label strips a trailing "— יום N" from that day's title (`cleanGroupLabel()`) when present, falling back to the title as-is.
+
+### Nearby restaurants (Google Places API, server-side proxy)
+
+The **🍽️ מסעדות מומלצות** page is a static curated list (`RESTAURANTS_BY_LOCATION`, same pattern as wineries/hotels). **📍 מסעדות בסביבתי** is a separate, dynamic feature: on button click it asks the browser for the user's current location (`navigator.geolocation`) and calls the Google Places API (New, `places:searchNearby`) to find restaurants near it.
+
+This is the **one exception** to "no API keys, no backend" in this repo. A Google Places API key can't be safely embedded in `app.js`/`index.html` even with a domain restriction — anyone can read it out of the shipped JS. So the key lives only in the Netlify **environment variable** `GOOGLE_PLACES_API_KEY` (Site settings → Environment variables in the Netlify dashboard, not in any file in this repo), and is used exclusively inside `netlify/functions/nearby-restaurants.js` — a Netlify Function that the browser calls (`/.netlify/functions/nearby-restaurants?lat=..&lng=..`), which then calls Google server-side and returns just `{ name, placeId, rating, reviews, address }` per result. The raw key never reaches the browser.
+
+The Google Cloud Console restriction on the key is (and should stay) **HTTP referrers** matching this site's domain — the normal restriction for client-side Maps/Places usage. Because the Netlify Function calls Google server-to-server, it wouldn't normally send a `Referer` header at all, so `nearby-restaurants.js` explicitly sets `Referer: process.env.URL` (Netlify's built-in "primary site URL" var) on the outgoing request to satisfy that same restriction — this means the key's restriction never needs loosening just to route the call through the proxy. `netlify.toml` (`build.functions = "netlify/functions"`) is what tells Netlify to deploy that function.
+
+The client side (`findNearbyRestaurants()` in `app.js`) reuses `buildVerifiedMapsUrl()` and `renderPlaceGroups()` — the `id` field Places API (New) returns is a real Google `place_id`, so results get the same verified-link maps button as everywhere else. Errors (geolocation denied, fetch failure, zero results) degrade to an inline status message, never a broken page — same "prefer showing nothing over showing something wrong" principle as the rest of the app.
+
+Local testing needs `netlify dev` (Netlify CLI) since a plain `index.html` double-click has no Netlify Function runtime behind it; `process.env.URL` differs locally (e.g. `http://localhost:8888`) and won't match the key's referrer restriction, so this feature specifically only works once deployed to the real Netlify domain (or via `netlify dev` after adjusting the restriction to also allow the local URL, temporarily).
 
 ### Text conventions in the itinerary data
 

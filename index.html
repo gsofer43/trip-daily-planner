@@ -19,6 +19,7 @@
     <button id="wineriesBtn" class="btn btn-ghost" title="יקבים מומלצים לאורך המסלול">🍷 יקבים מומלצים</button>
     <button id="hotelsBtn" class="btn btn-ghost" title="מלונות מומלצים לאורך המסלול">🏨 מלונות מומלצים</button>
     <button id="restaurantsBtn" class="btn btn-ghost" title="מסעדות מומלצות לאורך המסלול">🍽️ מסעדות מומלצות</button>
+    <button id="nearbyRestaurantsBtn" class="btn btn-ghost" title="חיפוש מסעדות לפי המיקום הנוכחי שלכם">📍 מסעדות בסביבתי</button>
     <button id="packingBtn" class="btn btn-ghost" title="רשימת ציוד לטיול">🎒 רשימת ציוד</button>
     <button id="instagramBtn" class="btn btn-ghost" title="השראה מאינסטגרם מהקבוצה">📸 השראה מאינסטגרם</button>
     <button id="exportBtn" class="btn btn-ghost" title="שמירת גיבוי כקובץ JSON">⬇️ גיבוי</button>
@@ -71,6 +72,17 @@
     <button id="closeRestaurantsBtn" class="btn btn-ghost">✕ חזרה לימים</button>
   </div>
   <div id="restaurantsList" class="place-list"></div>
+</section>
+
+<section id="nearbyRestaurantsSection" class="overview-map-section hidden">
+  <div class="overview-map-header">
+    <div class="map-section-title">📍 מסעדות בסביבתי</div>
+    <button id="closeNearbyRestaurantsBtn" class="btn btn-ghost">✕ חזרה לימים</button>
+  </div>
+  <p class="place-hint">מבוסס על המיקום הנוכחי שלכם (נדרש אישור מיקום מהדפדפן) וחיפוש ב-Google Places.</p>
+  <button id="findNearbyRestaurantsBtn" class="btn btn-primary">📍 מצא מסעדות לידי</button>
+  <p id="nearbyRestaurantsStatus" class="weather-status"></p>
+  <div id="nearbyRestaurantsList" class="place-list"></div>
 </section>
 
 <section id="instagramSection" class="overview-map-section hidden">

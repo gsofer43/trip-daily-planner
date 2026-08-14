@@ -308,6 +308,13 @@ const restaurantsSection = document.getElementById('restaurantsSection');
 const closeRestaurantsBtn = document.getElementById('closeRestaurantsBtn');
 const restaurantsListEl = document.getElementById('restaurantsList');
 
+const nearbyRestaurantsBtn = document.getElementById('nearbyRestaurantsBtn');
+const nearbyRestaurantsSection = document.getElementById('nearbyRestaurantsSection');
+const closeNearbyRestaurantsBtn = document.getElementById('closeNearbyRestaurantsBtn');
+const findNearbyRestaurantsBtn = document.getElementById('findNearbyRestaurantsBtn');
+const nearbyRestaurantsStatusEl = document.getElementById('nearbyRestaurantsStatus');
+const nearbyRestaurantsListEl = document.getElementById('nearbyRestaurantsList');
+
 const instagramBtn = document.getElementById('instagramBtn');
 const instagramSection = document.getElementById('instagramSection');
 const closeInstagramBtn = document.getElementById('closeInstagramBtn');
@@ -1159,6 +1166,63 @@ function renderRestaurants() {
   renderPlaceGroups(restaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
 }
 
+// ---------- Nearby restaurants (📍 מסעדות בסביבתי) — live Google Places lookup ----------
+// Unlike RESTAURANTS_BY_LOCATION above (static, curated), this asks the browser for the
+// user's current location and calls a Netlify Function proxy (netlify/functions/
+// nearby-restaurants.js) that queries the Google Places API server-side — the Places API key
+// never reaches this file or the browser at all. See CLAUDE.md for the full setup/rationale.
+async function findNearbyRestaurants() {
+  if (!navigator.geolocation) {
+    nearbyRestaurantsStatusEl.textContent = 'הדפדפן הזה לא תומך באיתור מיקום.';
+    return;
+  }
+
+  findNearbyRestaurantsBtn.disabled = true;
+  nearbyRestaurantsListEl.innerHTML = '';
+  nearbyRestaurantsStatusEl.textContent = 'מאתר את המיקום שלך...';
+
+  navigator.geolocation.getCurrentPosition(
+    async position => {
+      const { latitude, longitude } = position.coords;
+      nearbyRestaurantsStatusEl.textContent = 'מחפש מסעדות בסביבה...';
+      try {
+        const res = await fetch(`/.netlify/functions/nearby-restaurants?lat=${latitude}&lng=${longitude}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'שגיאה בשליפת מסעדות');
+
+        if (!data.restaurants || data.restaurants.length === 0) {
+          nearbyRestaurantsStatusEl.textContent = 'לא נמצאו מסעדות בסביבה הקרובה.';
+          return;
+        }
+
+        const groups = [{
+          location: 'מסעדות בסביבתך',
+          items: data.restaurants.map(r => ({
+            name: r.name,
+            note: (r.rating != null && r.reviews != null)
+              ? `${r.rating.toFixed(1)} ⭐ (${r.reviews.toLocaleString('he-IL')} ביקורות)`
+              : r.address,
+            mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
+          }))
+        }];
+        renderPlaceGroups(nearbyRestaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
+        nearbyRestaurantsStatusEl.textContent = `נמצאו ${data.restaurants.length} מסעדות (מבוסס Google Places).`;
+      } catch (err) {
+        nearbyRestaurantsStatusEl.textContent = 'שליפת מסעדות נכשלה (יתכן שאין חיבור לאינטרנט, או שהשירות אינו זמין כרגע).';
+      } finally {
+        findNearbyRestaurantsBtn.disabled = false;
+      }
+    },
+    () => {
+      nearbyRestaurantsStatusEl.textContent = 'לא הצלחנו לקבל את המיקום שלך (בדקו הרשאות מיקום בדפדפן).';
+      findNearbyRestaurantsBtn.disabled = false;
+    },
+    { timeout: 10000 }
+  );
+}
+
+findNearbyRestaurantsBtn.addEventListener('click', findNearbyRestaurants);
+
 // ---------- Instagram inspiration (📸 השראה מאינסטגרם) ----------
 // נתונים קבועים בקוד (data/instagramLinks.js), לא ניתנים לעריכה מה-UI.
 // לא משתמש ב-renderPlaceGroups() כי הכרטיסים כאן שונים מהותית (כיתוב + קישור לאינסטגרם,
@@ -1783,6 +1847,7 @@ function hideAllSpecialSections() {
   wineriesSection.classList.add('hidden');
   hotelsSection.classList.add('hidden');
   restaurantsSection.classList.add('hidden');
+  nearbyRestaurantsSection.classList.add('hidden');
   instagramSection.classList.add('hidden');
   packingSection.classList.add('hidden');
 }
@@ -1814,6 +1879,9 @@ closeHotelsBtn.addEventListener('click', closeSpecialSections);
 
 restaurantsBtn.addEventListener('click', () => openSpecialSection(restaurantsSection));
 closeRestaurantsBtn.addEventListener('click', closeSpecialSections);
+
+nearbyRestaurantsBtn.addEventListener('click', () => openSpecialSection(nearbyRestaurantsSection));
+closeNearbyRestaurantsBtn.addEventListener('click', closeSpecialSections);
 
 instagramBtn.addEventListener('click', () => {
   openSpecialSection(instagramSection);
