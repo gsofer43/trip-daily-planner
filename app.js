@@ -1060,7 +1060,12 @@ function renderHotels() {
 // לאותו כרטיס טקסט פשוט — עדיף להראות פחות אבל נכון מאשר widget שבור.
 const INSTAGRAM_TYPE_LABELS = { post: 'פוסט', reel: 'רילס', profile: 'פרופיל', story: 'סטורי' };
 const INSTAGRAM_EMBEDDABLE_TYPES = ['post', 'reel'];
-const INSTAGRAM_EMBED_TIMEOUT_MS = 8000; // לאינסטגרם אין callback הצלחה/כישלון — זמן סביר לפני שנופלים חזרה לכרטיס הפשוט
+// כשכל ההטמעות בטאב נטענות ביחד (עד 15), אינסטגרם מעבד אותן בערך בטור + מגבלת חיבורים
+// של הדפדפן, כך שחלקן לוקחות הרבה יותר זמן מאחרות באותה טעינה בדיוק — נצפה בפועל שכל
+// ה-URLs מצליחים בסוף, פשוט לא באותו הזמן. לכן לא נופלים חזרה לפי טיימר עיוור; במקום זאת
+// מחכים בפועל להופעת ה-iframe (MutationObserver) ומשתמשים בטיימאאוט רק כרשת ביטחון אחרונה
+// למקרה שההטמעה באמת אף פעם לא נטענת.
+const INSTAGRAM_EMBED_TIMEOUT_MS = 20000;
 
 function buildInstagramPlainCard(item) {
   const card = document.createElement('div');
@@ -1115,17 +1120,32 @@ function fallbackAllPendingInstagramEmbeds() {
   pendingInstagramEmbeds = [];
 }
 
+// עוקב אחרי wrap בודד ומחכה שה-iframe האמיתי יופיע בפועל (במקום לנחש טיימאאוט קבוע).
+// מפסיק לעקוב ברגע שה-iframe מופיע, או נופל חזרה לכרטיס הפשוט אם הוא לא הופיע עד
+// INSTAGRAM_EMBED_TIMEOUT_MS — מה שקורה קודם.
+function watchInstagramEmbed(wrap) {
+  if (wrap.querySelector('iframe')) return; // כבר הצליח (למשל תור מהיר) — אין מה לעקוב אחריו
+  let settled = false;
+  const finish = success => {
+    if (settled) return;
+    settled = true;
+    observer.disconnect();
+    clearTimeout(timeoutId);
+    if (!success) fallbackInstagramEmbedWrap(wrap);
+  };
+  const observer = new MutationObserver(() => {
+    if (wrap.querySelector('iframe')) finish(true);
+  });
+  observer.observe(wrap, { childList: true, subtree: true });
+  const timeoutId = setTimeout(() => finish(false), INSTAGRAM_EMBED_TIMEOUT_MS);
+}
+
 function processPendingInstagramEmbeds() {
   if (!window.instgrm) { fallbackAllPendingInstagramEmbeds(); return; }
   const toCheck = pendingInstagramEmbeds;
   pendingInstagramEmbeds = [];
   window.instgrm.Embeds.process();
-  toCheck.forEach(wrap => {
-    setTimeout(() => {
-      const rendered = wrap.querySelector('iframe');
-      if (!rendered) fallbackInstagramEmbedWrap(wrap);
-    }, INSTAGRAM_EMBED_TIMEOUT_MS);
-  });
+  toCheck.forEach(watchInstagramEmbed);
 }
 
 function queueInstagramEmbed(wrapEl) {
