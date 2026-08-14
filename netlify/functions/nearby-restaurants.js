@@ -60,6 +60,10 @@ exports.handler = async (event) => {
     const data = await response.json();
     if (!response.ok) {
       const message = (data && data.error && data.error.message) || 'שגיאה מול Google Places API';
+      // Logged server-side (visible via `netlify logs --function nearby-restaurants`) so the
+      // real Google error — e.g. REQUEST_DENIED, an unenabled API — is diagnosable without
+      // having to reproduce the request manually. The client only gets the generic message.
+      console.error(`Google Places API error (status ${response.status}): ${message}`);
       return { statusCode: response.status, body: JSON.stringify({ error: message }) };
     }
 
@@ -79,6 +83,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ restaurants })
     };
   } catch (err) {
+    console.error('nearby-restaurants: failed to reach Google Places API:', err);
     return { statusCode: 502, body: JSON.stringify({ error: 'החיבור ל-Google Places API נכשל' }) };
   }
 };
