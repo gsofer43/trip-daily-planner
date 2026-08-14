@@ -303,6 +303,11 @@ const hotelsSection = document.getElementById('hotelsSection');
 const closeHotelsBtn = document.getElementById('closeHotelsBtn');
 const hotelsListEl = document.getElementById('hotelsList');
 
+const restaurantsBtn = document.getElementById('restaurantsBtn');
+const restaurantsSection = document.getElementById('restaurantsSection');
+const closeRestaurantsBtn = document.getElementById('closeRestaurantsBtn');
+const restaurantsListEl = document.getElementById('restaurantsList');
+
 const instagramBtn = document.getElementById('instagramBtn');
 const instagramSection = document.getElementById('instagramSection');
 const closeInstagramBtn = document.getElementById('closeInstagramBtn');
@@ -1061,6 +1066,99 @@ function renderHotels() {
   renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️', 'הזמנה בבוקינג 🛏️');
 }
 
+// ---------- Recommended restaurants (static reference page) ----------
+const RESTAURANTS_BY_LOCATION = [
+  {
+    location: 'רייקה צרנוייביצה',
+    restaurants: [
+      { name: 'Restoran Savina luka', rating: 4.8, reviews: '491', placeId: 'ChIJbWp7OgDFTRMR2gpw7d5qLm4' },
+      { name: 'Casarogna Culinary Escape', rating: 5.0, reviews: '123', placeId: 'ChIJLQSCxFPFTRMRKMOCjq6mLyk' }
+    ]
+  },
+  {
+    location: 'ת\'ת\' (Theth)',
+    restaurants: [
+      { name: 'Gjeçaj Restaurant - Alpine Cuisine', rating: 4.8, reviews: '1,280', placeId: 'ChIJNRTEm51tUhMRXshDQlwqFhE' },
+      { name: 'Restaurant Jezerca', rating: 4.7, reviews: '1,692', placeId: 'ChIJPYuxCGVtUhMRIgwRRGl_b_g' }
+    ]
+  },
+  {
+    location: 'שקודר (Shkodër)',
+    restaurants: [
+      { name: 'Genti Breakfast&Restaurant', rating: 4.9, reviews: '2,708', placeId: 'ChIJcYXR3-0BThMRfKkATMy2fIY' },
+      { name: 'Fisi Restaurant - Traditional Food', rating: 4.7, reviews: '5,631', placeId: 'ChIJf708YP4AThMRfIYxDo-FrY4' }
+    ]
+  },
+  {
+    location: 'בראט (Berat)',
+    restaurants: [
+      { name: 'Eni Traditional Food Berat', rating: 4.9, reviews: '7,810', placeId: 'ChIJfeLJaBajWhMRUeSn6xdxMXU' },
+      { name: 'Konak', rating: 4.9, reviews: '1,827', placeId: 'ChIJ0US5RACjWhMRa0y0_gpHRSY' }
+    ]
+  },
+  {
+    location: 'סרנדה (Sarandë)',
+    restaurants: [
+      { name: 'Traditional Restaurant Argjiro', rating: 4.9, reviews: '1,306', placeId: 'ChIJ8_K7AAwVWxMRe3Qzt1fzxtU' },
+      { name: 'Taverna Del Mare', rating: 4.8, reviews: '2,273', placeId: 'ChIJxzpEzZYVWxMRhGsAy0dyA6I' }
+    ]
+  },
+  {
+    location: 'הימרה (Himarë)',
+    restaurants: [
+      { name: 'The Jester\'s Taverna', rating: 4.8, reviews: '1,709', placeId: 'ChIJ1zKMTBovWxMRiIn1lp0zo3c' },
+      { name: 'Valeza Restaurant', rating: 4.9, reviews: '258', placeId: 'ChIJgQ5Z_M4vWxMRvKZ6ibvVEkQ' }
+    ]
+  },
+  {
+    location: 'טירנה (Tirana)',
+    restaurants: [
+      { name: 'EJA Restaurant', rating: 4.9, reviews: '2,060', placeId: 'ChIJxy7KdosxUBMRnzuIanxXNFs' },
+      { name: 'Artigiano at Vila', rating: 4.8, reviews: '5,764', placeId: 'ChIJrWsmjBsxUBMR5mQA84uF_wk' }
+    ]
+  },
+  {
+    location: 'בודווה (Budva)',
+    restaurants: [
+      { name: 'Konoba Bocun', rating: 4.8, reviews: '2,080', placeId: 'ChIJ-6AK553UTRMRvUb2mOCqFbw' },
+      { name: 'Konoba Dušanov Vrt', rating: 4.9, reviews: '429', placeId: 'ChIJL-Ji69jVTRMRgfEmZTV9Dfc' }
+    ]
+  },
+  {
+    location: 'קוטור (Kotor)',
+    restaurants: [
+      { name: 'Bonazza restaurant Kotor', rating: 4.8, reviews: '4,080', placeId: 'ChIJ7TSBwHYzTBMRgH-3q8oaoZo' },
+      { name: 'Pepe Nero', rating: 4.8, reviews: '2,371', placeId: 'ChIJUxB22XwzTBMRrHYKWViKKPw' }
+    ]
+  },
+  {
+    location: 'ז\'בליאק (Žabljak)',
+    restaurants: [
+      { name: 'MB Restaurant', rating: 4.8, reviews: '337', placeId: 'ChIJNU-EKPA5TRMRisnkytmdmME' },
+      { name: 'Hotel & Restaurant Nordik', rating: 5.0, reviews: '213', placeId: 'ChIJ35pePXA_TRMRs2c3h-jE9_k' }
+    ]
+  },
+  {
+    location: 'טיווט (Tivat)',
+    restaurants: [
+      { name: 'Macaroni Handmade Pasta', rating: 4.9, reviews: '1,142', placeId: 'ChIJ2Wd8G74xTBMR0lxuXVUOZ40' },
+      { name: 'Punto Crudo', rating: 4.8, reviews: '571', placeId: 'ChIJYcHnMwsxTBMRoAj1SKZliC8' }
+    ]
+  }
+];
+
+function renderRestaurants() {
+  const groups = RESTAURANTS_BY_LOCATION.map(g => ({
+    location: g.location,
+    items: g.restaurants.map(r => ({
+      name: r.name,
+      note: `${r.rating.toFixed(1)} ⭐ (${r.reviews} ביקורות)`,
+      mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
+    }))
+  }));
+  renderPlaceGroups(restaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
+}
+
 // ---------- Instagram inspiration (📸 השראה מאינסטגרם) ----------
 // נתונים קבועים בקוד (data/instagramLinks.js), לא ניתנים לעריכה מה-UI.
 // לא משתמש ב-renderPlaceGroups() כי הכרטיסים כאן שונים מהותית (כיתוב + קישור לאינסטגרם,
@@ -1684,6 +1782,7 @@ function hideAllSpecialSections() {
   overviewMapSection.classList.add('hidden');
   wineriesSection.classList.add('hidden');
   hotelsSection.classList.add('hidden');
+  restaurantsSection.classList.add('hidden');
   instagramSection.classList.add('hidden');
   packingSection.classList.add('hidden');
 }
@@ -1712,6 +1811,9 @@ closeWineriesBtn.addEventListener('click', closeSpecialSections);
 
 hotelsBtn.addEventListener('click', () => openSpecialSection(hotelsSection));
 closeHotelsBtn.addEventListener('click', closeSpecialSections);
+
+restaurantsBtn.addEventListener('click', () => openSpecialSection(restaurantsSection));
+closeRestaurantsBtn.addEventListener('click', closeSpecialSections);
 
 instagramBtn.addEventListener('click', () => {
   openSpecialSection(instagramSection);
@@ -1773,6 +1875,7 @@ resetBtn.addEventListener('click', () => {
 render();
 renderWineries();
 renderHotels();
+renderRestaurants();
 renderPackingList();
 renderWeatherList();
 weatherStatusEl.textContent = computeLastWeatherUpdateText();
