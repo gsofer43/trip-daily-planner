@@ -62,9 +62,9 @@ const INSTAGRAM_LINKS_BY_REGION = [
         ]
       },
       {
-        name: 'יקב (מיקום לא מאומת)',
+        name: 'פודגוריצה (Podgorica)',
         items: [
-          { url: 'https://www.instagram.com/reel/C7hAylYoHqh/', caption: 'יקב במונטנגרו', type: 'reel', note: 'המיקום המדויק לא אומת' }
+          { url: 'https://www.instagram.com/reel/C7hAylYoHqh/', caption: 'יקב בפודגוריצה', type: 'reel' }
         ]
       }
     ]
