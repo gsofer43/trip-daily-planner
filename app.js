@@ -1171,6 +1171,15 @@ function renderRestaurants() {
 // user's current location and calls a Netlify Function proxy (netlify/functions/
 // nearby-restaurants.js) that queries the Google Places API server-side — the Places API key
 // never reaches this file or the browser at all. See CLAUDE.md for the full setup/rationale.
+// Formats a straight-line distance in meters (as returned by the nearby-restaurants function)
+// for display: under 1000m as whole meters ("200 מ'"), 1000m and above as km with one decimal
+// ("1.2 ק\"מ"). Returns '' when the distance is unknown, so callers can drop it cleanly.
+function formatDistanceHe(distanceMeters) {
+  if (typeof distanceMeters !== 'number' || !Number.isFinite(distanceMeters)) return '';
+  if (distanceMeters < 1000) return `${Math.round(distanceMeters)} מ'`;
+  return `${(distanceMeters / 1000).toFixed(1)} ק"מ`;
+}
+
 async function findNearbyRestaurants() {
   if (!navigator.geolocation) {
     nearbyRestaurantsStatusEl.textContent = 'הדפדפן הזה לא תומך באיתור מיקום.';
@@ -1200,13 +1209,17 @@ async function findNearbyRestaurants() {
 
         const groups = [{
           location: 'מסעדות בסביבתך',
-          items: data.restaurants.map(r => ({
-            name: r.name,
-            note: (r.rating != null && r.reviews != null)
+          items: data.restaurants.map(r => {
+            const ratingPart = (r.rating != null && r.reviews != null)
               ? `${r.rating.toFixed(1)} ⭐ (${r.reviews.toLocaleString('he-IL')} ביקורות)`
-              : r.address,
-            mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
-          }))
+              : r.address;
+            const distancePart = formatDistanceHe(r.distanceMeters);
+            return {
+              name: r.name,
+              note: distancePart ? `${distancePart} · ${ratingPart}` : ratingPart,
+              mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
+            };
+          })
         }];
         renderPlaceGroups(nearbyRestaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
         nearbyRestaurantsStatusEl.textContent = `נמצאו ${data.restaurants.length} מסעדות (מבוסס Google Places).`;
