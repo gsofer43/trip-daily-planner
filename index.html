@@ -19,6 +19,7 @@
     <button id="wineriesBtn" class="btn btn-ghost" title="יקבים מומלצים לאורך המסלול">🍷 יקבים מומלצים</button>
     <button id="hotelsBtn" class="btn btn-ghost" title="מלונות מומלצים לאורך המסלול">🏨 מלונות מומלצים</button>
     <button id="packingBtn" class="btn btn-ghost" title="רשימת ציוד לטיול">🎒 רשימת ציוד</button>
+    <button id="instagramBtn" class="btn btn-ghost" title="השראה מאינסטגרם מהקבוצה">📸 השראה מאינסטגרם</button>
     <button id="exportBtn" class="btn btn-ghost" title="שמירת גיבוי כקובץ JSON">⬇️ גיבוי</button>
     <label class="btn btn-ghost file-label" title="טעינת גיבוי מקובץ JSON">
       ⬆️ שחזור
@@ -61,6 +62,14 @@
     <button id="closeHotelsBtn" class="btn btn-ghost">✕ חזרה לימים</button>
   </div>
   <div id="hotelsList" class="place-list"></div>
+</section>
+
+<section id="instagramSection" class="overview-map-section hidden">
+  <div class="overview-map-header">
+    <div class="map-section-title">📸 השראה מאינסטגרם</div>
+    <button id="closeInstagramBtn" class="btn btn-ghost">✕ חזרה לימים</button>
+  </div>
+  <div id="instagramList" class="place-list"></div>
 </section>
 
 <section id="packingSection" class="overview-map-section hidden">
@@ -169,6 +178,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="data/instagramLinks.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

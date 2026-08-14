@@ -303,6 +303,11 @@ const hotelsSection = document.getElementById('hotelsSection');
 const closeHotelsBtn = document.getElementById('closeHotelsBtn');
 const hotelsListEl = document.getElementById('hotelsList');
 
+const instagramBtn = document.getElementById('instagramBtn');
+const instagramSection = document.getElementById('instagramSection');
+const closeInstagramBtn = document.getElementById('closeInstagramBtn');
+const instagramListEl = document.getElementById('instagramList');
+
 const packingBtn = document.getElementById('packingBtn');
 const packingSection = document.getElementById('packingSection');
 const closePackingBtn = document.getElementById('closePackingBtn');
@@ -1043,6 +1048,55 @@ function renderHotels() {
   renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️');
 }
 
+// ---------- Instagram inspiration (📸 השראה מאינסטגרם) ----------
+// נתונים קבועים בקוד (data/instagramLinks.js), לא ניתנים לעריכה מה-UI.
+// לא משתמש ב-renderPlaceGroups() כי הכרטיסים כאן שונים מהותית (כיתוב + קישור לאינסטגרם,
+// לא קישור למפות) — אבל משתמש באותם מחלקות CSS (.place-group / .place-card וכו') כדי לשמור
+// על אותה שפה חזותית כמו יקבים/מלונות.
+const INSTAGRAM_TYPE_LABELS = { post: 'פוסט', reel: 'רילס', profile: 'פרופיל', story: 'סטורי' };
+
+function buildInstagramCard(item) {
+  const card = document.createElement('div');
+  card.className = 'place-card instagram-card';
+  card.dataset.igType = item.type;
+  card.innerHTML = `
+    <span class="instagram-type-badge">${escapeHtml(INSTAGRAM_TYPE_LABELS[item.type] || item.type)}</span>
+    <p class="place-name">${escapeHtml(item.caption)}</p>
+    ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
+    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">פתיחה באינסטגרם 📸</a>
+  `;
+  return card;
+}
+
+function renderInstagram() {
+  instagramListEl.innerHTML = '';
+  INSTAGRAM_LINKS_BY_REGION.forEach(region => {
+    const regionEl = document.createElement('div');
+    regionEl.className = 'place-group';
+
+    const regionTitle = document.createElement('h3');
+    regionTitle.className = 'place-group-title';
+    regionTitle.textContent = region.region;
+    regionEl.appendChild(regionTitle);
+
+    region.subcategories.forEach(sub => {
+      const subTitle = document.createElement('h4');
+      subTitle.className = 'place-subgroup-title';
+      subTitle.textContent = sub.name;
+      regionEl.appendChild(subTitle);
+
+      const cardsEl = document.createElement('div');
+      cardsEl.className = 'instagram-cards';
+      sub.items.forEach(item => {
+        cardsEl.appendChild(buildInstagramCard(item));
+      });
+      regionEl.appendChild(cardsEl);
+    });
+
+    instagramListEl.appendChild(regionEl);
+  });
+}
+
 // ---------- Packing checklist (🎒 רשימת ציוד) ----------
 // Category choice and starting items are informed by two things:
 // 1) The actual day data in defaultData() above: the two Theth days and the Durmitor/
@@ -1517,6 +1571,7 @@ function hideAllSpecialSections() {
   overviewMapSection.classList.add('hidden');
   wineriesSection.classList.add('hidden');
   hotelsSection.classList.add('hidden');
+  instagramSection.classList.add('hidden');
   packingSection.classList.add('hidden');
 }
 
@@ -1544,6 +1599,12 @@ closeWineriesBtn.addEventListener('click', closeSpecialSections);
 
 hotelsBtn.addEventListener('click', () => openSpecialSection(hotelsSection));
 closeHotelsBtn.addEventListener('click', closeSpecialSections);
+
+instagramBtn.addEventListener('click', () => {
+  openSpecialSection(instagramSection);
+  renderInstagram();
+});
+closeInstagramBtn.addEventListener('click', closeSpecialSections);
 
 packingBtn.addEventListener('click', () => openSpecialSection(packingSection));
 closePackingBtn.addEventListener('click', closeSpecialSections);
