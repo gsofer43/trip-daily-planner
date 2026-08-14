@@ -263,6 +263,13 @@ a.btn {
   font-size: 0.88rem;
 }
 
+.place-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+
 .place-maps-btn {
   align-self: flex-start;
 }

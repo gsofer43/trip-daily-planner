@@ -933,8 +933,10 @@ function deleteDay(dayId) {
 }
 
 // ---------- Grouped place cards (shared by wineries / hotels / future pages) ----------
-// groups: [{ location, items: [{ name, note?, mapsUrl }] }]
-function renderPlaceGroups(containerEl, groups, buttonLabel) {
+// groups: [{ location, items: [{ name, note?, mapsUrl, secondaryUrl? }] }]
+// secondaryUrl + secondaryLabel הם אופציונליים (כרגע רק המלונות משתמשים בהם, לכפתור הזמנה
+// נוסף) — כשלא מוגדרים לפריט, הכרטיס נראה בדיוק כמו קודם (יקבים לא מושפעים).
+function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
   containerEl.innerHTML = '';
   groups.forEach(group => {
     const groupEl = document.createElement('div');
@@ -954,7 +956,10 @@ function renderPlaceGroups(containerEl, groups, buttonLabel) {
       card.innerHTML = `
         <p class="place-name">${escapeHtml(item.name)}</p>
         ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
-        <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
+        <div class="place-card-actions">
+          <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
+          ${item.secondaryUrl ? `<a href="${escapeHtml(item.secondaryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(secondaryLabel)}</a>` : ''}
+        </div>
         <small class="place-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
       `;
       cardsEl.appendChild(card);
@@ -1016,6 +1021,10 @@ function buildHotelMapsSearchUrl(hotelName, searchLocation) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotelName + ' ' + searchLocation)}`;
 }
 
+function buildBookingSearchUrl(hotelName, searchLocation) {
+  return `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(hotelName)}+${encodeURIComponent(searchLocation)}`;
+}
+
 // searchLocation מגדיר מחרוזת ניקוי לחיפוש בגוגל מפות (בלי תוספות עברית), נפרד מ-location שמוצג למשתמש.
 const HOTELS_BY_LOCATION = [
   {
@@ -1043,9 +1052,13 @@ const HOTELS_BY_LOCATION = [
 function renderHotels() {
   const groups = HOTELS_BY_LOCATION.map(g => ({
     location: g.location,
-    items: g.hotels.map(name => ({ name, mapsUrl: buildHotelMapsSearchUrl(name, g.searchLocation) }))
+    items: g.hotels.map(name => ({
+      name,
+      mapsUrl: buildHotelMapsSearchUrl(name, g.searchLocation),
+      secondaryUrl: buildBookingSearchUrl(name, g.searchLocation)
+    }))
   }));
-  renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️');
+  renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️', 'הזמנה בבוקינג 🛏️');
 }
 
 // ---------- Instagram inspiration (📸 השראה מאינסטגרם) ----------
