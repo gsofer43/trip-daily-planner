@@ -1191,7 +1191,10 @@ async function findNearbyRestaurants() {
         if (!res.ok) throw new Error(data.error || 'שגיאה בשליפת מסעדות');
 
         if (!data.restaurants || data.restaurants.length === 0) {
-          nearbyRestaurantsStatusEl.textContent = 'לא נמצאו מסעדות בסביבה הקרובה.';
+          // The function already filters to rating ≥4.5 with ≥150 reviews and retries at a wider
+          // radius before giving up — an empty list here means that quality bar genuinely wasn't
+          // met nearby, not that the search itself failed.
+          nearbyRestaurantsStatusEl.textContent = 'לא נמצאו מסעדות מדורגות גבוה בסביבה הקרובה (4.5+ כוכבים, 150+ ביקורות).';
           return;
         }
 
