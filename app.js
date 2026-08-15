@@ -980,6 +980,7 @@ function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
       card.innerHTML = `
         <p class="place-name">${escapeHtml(item.name)}</p>
         ${item.cuisine ? `<p class="place-cuisine">${escapeHtml(item.cuisine)}</p>` : ''}
+        ${item.stores ? `<p class="place-cuisine">חנויות עיקריות: ${escapeHtml(item.stores)}</p>` : ''}
         ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
         <div class="place-card-actions">
           <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
@@ -1197,29 +1198,29 @@ const SHOPPING_BY_LOCATION = [
   {
     location: 'טירנה (24/09 — על המסלול)',
     shops: [
-      { name: 'TEG - Tirana East Gate', rating: 4.4, reviews: '4,711', placeId: 'ChIJM7Topk03UBMR6fJcTC-f6PE', description: 'הקניון הגדול ביותר באלבניה, כולל Zara, H&M, New Yorker, Timberland' },
-      { name: 'Toptani', rating: 4.4, reviews: '6,816', placeId: 'ChIJEYtUYxAxUBMR35dSgVZhF0g', description: 'מרכז העיר, בוטיקים ועיצוב, פודקורט' }
+      { name: 'TEG - Tirana East Gate', rating: 4.4, reviews: '4,711', placeId: 'ChIJM7Topk03UBMR6fJcTC-f6PE', description: 'הקניון הגדול ביותר באלבניה, כולל Zara, H&M, New Yorker, Timberland', stores: 'New Yorker, H&M, Zara, Timberland, Aldo, Samsonite, ועוד — כולל פודקורט וקולנוע' },
+      { name: 'Toptani', rating: 4.4, reviews: '6,816', placeId: 'ChIJEYtUYxAxUBMR35dSgVZhF0g', description: 'מרכז העיר, בוטיקים ועיצוב, פודקורט', stores: 'פודקורט (KFC, Burger King ועוד), סופרמרקט, בוטיקים מקומיים' }
     ]
   },
   {
     location: 'קוטור (27–30/09 — על המסלול, בלי סטייה)',
     shops: [
-      { name: 'Shopping Centre Kamelija', rating: 4.1, reviews: '2,699', placeId: 'ChIJJb4lEwUzTBMRimPdbuk-QW0', description: 'מותגים כמו CK, Tommy Hilfiger, Boss, ממש בלב העיר העתיקה' }
+      { name: 'Shopping Centre Kamelija', rating: 4.1, reviews: '2,699', placeId: 'ChIJJb4lEwUzTBMRimPdbuk-QW0', description: 'מותגים כמו CK, Tommy Hilfiger, Boss, ממש בלב העיר העתיקה', stores: 'Calvin Klein, Tommy Hilfiger, Hugo Boss, בית מרקחת, סופרמרקט' }
     ]
   },
   {
     location: 'פודגוריצה (סטייה אופציונלית מבודווה, כ-45 דק\' נסיעה — לא על המסלול הרשמי)',
     note: 'לא בדרך הרגילה — שווה רק אם רוצים להקדיש זמן לשופינג.',
     shops: [
-      { name: 'BIG Fashion Podgorica', rating: 4.4, reviews: '3,237', placeId: 'ChIJ380lkCDrTRMRww2w1I7PEDk', description: 'הקניון המומלץ ביותר במונטנגרו, מותגים מוכרים במחירים סבירים' },
-      { name: 'Extra Retail Park', rating: 4.3, reviews: '83', placeId: 'ChIJ25TJowjrTRMRA5xWZ0SQ524', description: 'אאוטלטים עם הנחות, פחות ידוע' }
+      { name: 'BIG Fashion Podgorica', rating: 4.4, reviews: '3,237', placeId: 'ChIJ380lkCDrTRMRww2w1I7PEDk', description: 'הקניון המומלץ ביותר במונטנגרו, מותגים מוכרים במחירים סבירים', stores: 'מגוון חנויות אופנה כלליות — לא אימתנו רשימה מדויקת' },
+      { name: 'Extra Retail Park', rating: 4.3, reviews: '83', placeId: 'ChIJ25TJowjrTRMRA5xWZ0SQ524', description: 'אאוטלטים עם הנחות, פחות ידוע', stores: 'מגוון חנויות אופנה כלליות — לא אימתנו רשימה מדויקת' }
     ]
   },
   {
     location: 'בר (Bar) — סטייה נוספת מהחוף, כ-20-30 דק\' מבודווה/קוטור',
     note: 'לא בדרך הרגילה — שווה רק אם רוצים להקדיש זמן לשופינג.',
     shops: [
-      { name: 'HDL Retail Park', rating: 4.3, reviews: '99', placeId: null, searchLocation: 'Bar, Montenegro', description: 'קניון קטן עם Jumbo, לא ענק אבל נוח אם כבר בסביבה' }
+      { name: 'HDL Retail Park', rating: 4.3, reviews: '99', placeId: null, searchLocation: 'Bar, Montenegro', description: 'קניון קטן עם Jumbo, לא ענק אבל נוח אם כבר בסביבה', stores: 'מגוון חנויות אופנה כלליות — לא אימתנו רשימה מדויקת' }
     ]
   }
 ];
@@ -1231,6 +1232,7 @@ function renderShopping() {
     items: g.shops.map(s => ({
       name: s.name,
       cuisine: s.description,
+      stores: s.stores,
       note: (s.rating != null && s.reviews != null) ? `${s.rating.toFixed(1)} ⭐ (${s.reviews} ביקורות)` : undefined,
       mapsUrl: s.placeId ? buildVerifiedMapsUrl(s.name, s.placeId) : buildPlainMapsSearchUrl(s.name, s.searchLocation)
     }))
