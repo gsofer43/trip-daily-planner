@@ -43,7 +43,7 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.primaryTypeDisplayName',
       // Satisfies the key's HTTP-referrer restriction for this server-to-server call — see
       // file header comment. process.env.URL is Netlify's built-in "primary site URL" var.
       Referer: process.env.URL || process.env.DEPLOY_URL || ''
@@ -76,6 +76,7 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
       rating: typeof p.rating === 'number' ? p.rating : null,
       reviews: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
       address: p.formattedAddress || '',
+      cuisine: (p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || '',
       distanceMeters: (p.location && typeof p.location.latitude === 'number' && typeof p.location.longitude === 'number')
         ? haversineMeters(lat, lng, p.location.latitude, p.location.longitude)
         : null
