@@ -1213,7 +1213,7 @@ async function findNearbyRestaurants() {
           location: 'מסעדות בסביבתך',
           items: data.restaurants.map(r => {
             const ratingPart = (r.rating != null && r.reviews != null)
-              ? `${r.rating.toFixed(1)} ⭐ (${r.reviews.toLocaleString('he-IL')} ביקורות)`
+              ? `${r.rating.toFixed(1)} ⭐ (${r.reviews.toLocaleString('he-IL')} ביקורות)${r.price ? ` · ${r.price}` : ''}`
               : r.address;
             const distancePart = formatDistanceHe(r.distanceMeters);
             return {
