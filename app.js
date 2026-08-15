@@ -967,6 +967,7 @@ function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
       card.className = 'place-card';
       card.innerHTML = `
         <p class="place-name">${escapeHtml(item.name)}</p>
+        ${item.cuisine ? `<p class="place-cuisine">${escapeHtml(item.cuisine)}</p>` : ''}
         ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
         <div class="place-card-actions">
           <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
@@ -1078,78 +1079,78 @@ const RESTAURANTS_BY_LOCATION = [
   {
     location: 'רייקה צרנוייביצה',
     restaurants: [
-      { name: 'Restoran Savina luka', rating: 4.8, reviews: '491', placeId: 'ChIJbWp7OgDFTRMR2gpw7d5qLm4' },
-      { name: 'Casarogna Culinary Escape', rating: 5.0, reviews: '123', placeId: 'ChIJLQSCxFPFTRMRKMOCjq6mLyk' }
+      { name: 'Restoran Savina luka', rating: 4.8, reviews: '491', placeId: 'ChIJbWp7OgDFTRMR2gpw7d5qLm4', cuisine: 'מטבח: דגי אגם, מונטנגרי מסורתי' },
+      { name: 'Casarogna Culinary Escape', rating: 5.0, reviews: '123', placeId: 'ChIJLQSCxFPFTRMRKMOCjq6mLyk', cuisine: 'מטבח: מונטנגרי מסורתי' }
     ]
   },
   {
     location: 'ת\'ת\' (Theth)',
     restaurants: [
-      { name: 'Gjeçaj Restaurant - Alpine Cuisine', rating: 4.8, reviews: '1,280', placeId: 'ChIJNRTEm51tUhMRXshDQlwqFhE' },
-      { name: 'Restaurant Jezerca', rating: 4.7, reviews: '1,692', placeId: 'ChIJPYuxCGVtUhMRIgwRRGl_b_g' }
+      { name: 'Gjeçaj Restaurant - Alpine Cuisine', rating: 4.8, reviews: '1,280', placeId: 'ChIJNRTEm51tUhMRXshDQlwqFhE', cuisine: 'מטבח: אלבני-הררי מסורתי' },
+      { name: 'Restaurant Jezerca', rating: 4.7, reviews: '1,692', placeId: 'ChIJPYuxCGVtUhMRIgwRRGl_b_g', cuisine: 'מטבח: אלבני מסורתי' }
     ]
   },
   {
     location: 'שקודר (Shkodër)',
     restaurants: [
-      { name: 'Genti Breakfast&Restaurant', rating: 4.9, reviews: '2,708', placeId: 'ChIJcYXR3-0BThMRfKkATMy2fIY' },
-      { name: 'Fisi Restaurant - Traditional Food', rating: 4.7, reviews: '5,631', placeId: 'ChIJf708YP4AThMRfIYxDo-FrY4' }
+      { name: 'Genti Breakfast&Restaurant', rating: 4.9, reviews: '2,708', placeId: 'ChIJcYXR3-0BThMRfKkATMy2fIY', cuisine: 'מטבח: אלבני מסורתי' },
+      { name: 'Fisi Restaurant - Traditional Food', rating: 4.7, reviews: '5,631', placeId: 'ChIJf708YP4AThMRfIYxDo-FrY4', cuisine: 'מטבח: אלבני מסורתי' }
     ]
   },
   {
     location: 'בראט (Berat)',
     restaurants: [
-      { name: 'Eni Traditional Food Berat', rating: 4.9, reviews: '7,810', placeId: 'ChIJfeLJaBajWhMRUeSn6xdxMXU' },
-      { name: 'Konak', rating: 4.9, reviews: '1,827', placeId: 'ChIJ0US5RACjWhMRa0y0_gpHRSY' }
+      { name: 'Eni Traditional Food Berat', rating: 4.9, reviews: '7,810', placeId: 'ChIJfeLJaBajWhMRUeSn6xdxMXU', cuisine: 'מטבח: אלבני מסורתי' },
+      { name: 'Konak', rating: 4.9, reviews: '1,827', placeId: 'ChIJ0US5RACjWhMRa0y0_gpHRSY', cuisine: 'מטבח: אלבני מסורתי (בראטי)' }
     ]
   },
   {
     location: 'סרנדה (Sarandë)',
     restaurants: [
-      { name: 'Traditional Restaurant Argjiro', rating: 4.9, reviews: '1,306', placeId: 'ChIJ8_K7AAwVWxMRe3Qzt1fzxtU' },
-      { name: 'Taverna Del Mare', rating: 4.8, reviews: '2,273', placeId: 'ChIJxzpEzZYVWxMRhGsAy0dyA6I' }
+      { name: 'Traditional Restaurant Argjiro', rating: 4.9, reviews: '1,306', placeId: 'ChIJ8_K7AAwVWxMRe3Qzt1fzxtU', cuisine: 'מטבח: אלבני מסורתי' },
+      { name: 'Traditional Table Sarande', rating: 4.8, reviews: '188', placeId: 'ChIJ68_NYOoVWxMR4E4F7AJuJUU', cuisine: 'מטבח: אלבני מסורתי' }
     ]
   },
   {
     location: 'הימרה (Himarë)',
     restaurants: [
-      { name: 'The Jester\'s Taverna', rating: 4.8, reviews: '1,709', placeId: 'ChIJ1zKMTBovWxMRiIn1lp0zo3c' },
-      { name: 'Valeza Restaurant', rating: 4.9, reviews: '258', placeId: 'ChIJgQ5Z_M4vWxMRvKZ6ibvVEkQ' }
+      { name: 'Fig and Olive', rating: 4.7, reviews: '964', placeId: 'ChIJjz7aXycvWxMRWUL6DW0eWBk', cuisine: 'מטבח: ים תיכוני' },
+      { name: 'Tonea\'s All Day Brunch & Café', rating: 4.9, reviews: '316', placeId: 'ChIJBQ5EJaUvWxMROx3t0GNB_JA', cuisine: 'מטבח: ברנץ\'/קפה' }
     ]
   },
   {
     location: 'טירנה (Tirana)',
     restaurants: [
-      { name: 'EJA Restaurant', rating: 4.9, reviews: '2,060', placeId: 'ChIJxy7KdosxUBMRnzuIanxXNFs' },
-      { name: 'Artigiano at Vila', rating: 4.8, reviews: '5,764', placeId: 'ChIJrWsmjBsxUBMR5mQA84uF_wk' }
+      { name: 'EJA Restaurant', rating: 4.9, reviews: '2,060', placeId: 'ChIJxy7KdosxUBMRnzuIanxXNFs', cuisine: 'מטבח: איטלקי' },
+      { name: 'Artigiano at Vila', rating: 4.8, reviews: '5,764', placeId: 'ChIJrWsmjBsxUBMR5mQA84uF_wk', cuisine: 'מטבח: איטלקי' }
     ]
   },
   {
     location: 'בודווה (Budva)',
     restaurants: [
-      { name: 'Konoba Bocun', rating: 4.8, reviews: '2,080', placeId: 'ChIJ-6AK553UTRMRvUb2mOCqFbw' },
-      { name: 'Konoba Dušanov Vrt', rating: 4.9, reviews: '429', placeId: 'ChIJL-Ji69jVTRMRgfEmZTV9Dfc' }
+      { name: 'Konoba Bocun', rating: 4.8, reviews: '2,080', placeId: 'ChIJ-6AK553UTRMRvUb2mOCqFbw', cuisine: 'מטבח: מונטנגרי מסורתי' },
+      { name: 'Antioch Restaurant Budva', rating: 4.8, reviews: '828', placeId: 'ChIJQ6z8b53VTRMRq_f6PHXJLpU', cuisine: 'מטבח: טורקי' }
     ]
   },
   {
     location: 'קוטור (Kotor)',
     restaurants: [
-      { name: 'Bonazza restaurant Kotor', rating: 4.8, reviews: '4,080', placeId: 'ChIJ7TSBwHYzTBMRgH-3q8oaoZo' },
-      { name: 'Pepe Nero', rating: 4.8, reviews: '2,371', placeId: 'ChIJUxB22XwzTBMRrHYKWViKKPw' }
+      { name: 'La Catedral Pasta Bar', rating: 4.7, reviews: '4,833', placeId: 'ChIJ_W9-37kzTBMRm3ei7Z08rcU', cuisine: 'מטבח: איטלקי' },
+      { name: 'Pepe Nero', rating: 4.8, reviews: '2,371', placeId: 'ChIJUxB22XwzTBMRrHYKWViKKPw', cuisine: 'מטבח: איטלקי-ים תיכוני' }
     ]
   },
   {
     location: 'ז\'בליאק (Žabljak)',
     restaurants: [
-      { name: 'MB Restaurant', rating: 4.8, reviews: '337', placeId: 'ChIJNU-EKPA5TRMRisnkytmdmME' },
-      { name: 'Hotel & Restaurant Nordik', rating: 5.0, reviews: '213', placeId: 'ChIJ35pePXA_TRMRs2c3h-jE9_k' }
+      { name: 'MB Restaurant', rating: 4.8, reviews: '337', placeId: 'ChIJNU-EKPA5TRMRisnkytmdmME', cuisine: 'מטבח: מונטנגרי מסורתי/גריל' },
+      { name: 'Hotel & Restaurant Nordik', rating: 5.0, reviews: '213', placeId: 'ChIJ35pePXA_TRMRs2c3h-jE9_k', cuisine: 'מטבח: כללי (מסעדת מלון)' }
     ]
   },
   {
     location: 'טיווט (Tivat)',
     restaurants: [
-      { name: 'Macaroni Handmade Pasta', rating: 4.9, reviews: '1,142', placeId: 'ChIJ2Wd8G74xTBMR0lxuXVUOZ40' },
-      { name: 'Punto Crudo', rating: 4.8, reviews: '571', placeId: 'ChIJYcHnMwsxTBMRoAj1SKZliC8' }
+      { name: 'Macaroni Handmade Pasta', rating: 4.9, reviews: '1,142', placeId: 'ChIJ2Wd8G74xTBMR0lxuXVUOZ40', cuisine: 'מטבח: איטלקי (פסטה)' },
+      { name: 'Korzo Kitchen', rating: 4.9, reviews: '319', placeId: 'ChIJb_35egcxTBMRUnzYNlCax5E', cuisine: 'מטבח: בינלאומי/אסייתי' }
     ]
   }
 ];
@@ -1159,6 +1160,7 @@ function renderRestaurants() {
     location: g.location,
     items: g.restaurants.map(r => ({
       name: r.name,
+      cuisine: r.cuisine,
       note: `${r.rating.toFixed(1)} ⭐ (${r.reviews} ביקורות)`,
       mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
     }))
