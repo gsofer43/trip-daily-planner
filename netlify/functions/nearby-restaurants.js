@@ -27,6 +27,16 @@ const SEARCH_RADII_METERS = [3000, 6000];
 
 const EARTH_RADIUS_METERS = 6371000;
 
+// Google's priceLevel enum → $ symbols for display. PRICE_LEVEL_UNSPECIFIED and any value not
+// listed here (including a missing field) map to '' so the card omits the price rather than
+// showing something misleading.
+const PRICE_LEVEL_SYMBOLS = {
+  PRICE_LEVEL_INEXPENSIVE: '$',
+  PRICE_LEVEL_MODERATE: '$$',
+  PRICE_LEVEL_EXPENSIVE: '$$$',
+  PRICE_LEVEL_VERY_EXPENSIVE: '$$$$'
+};
+
 // Straight-line distance in meters between the user's coordinates and a place's location.
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const toRad = deg => (deg * Math.PI) / 180;
@@ -43,7 +53,7 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.primaryTypeDisplayName',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.primaryTypeDisplayName,places.priceLevel',
       // Satisfies the key's HTTP-referrer restriction for this server-to-server call — see
       // file header comment. process.env.URL is Netlify's built-in "primary site URL" var.
       Referer: process.env.URL || process.env.DEPLOY_URL || ''
@@ -77,6 +87,7 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
       reviews: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
       address: p.formattedAddress || '',
       cuisine: (p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || '',
+      price: PRICE_LEVEL_SYMBOLS[p.priceLevel] || '',
       distanceMeters: (p.location && typeof p.location.latitude === 'number' && typeof p.location.longitude === 'number')
         ? haversineMeters(lat, lng, p.location.latitude, p.location.longitude)
         : null
