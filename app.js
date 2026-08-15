@@ -315,6 +315,11 @@ const findNearbyRestaurantsBtn = document.getElementById('findNearbyRestaurantsB
 const nearbyRestaurantsStatusEl = document.getElementById('nearbyRestaurantsStatus');
 const nearbyRestaurantsListEl = document.getElementById('nearbyRestaurantsList');
 
+const shoppingBtn = document.getElementById('shoppingBtn');
+const shoppingSection = document.getElementById('shoppingSection');
+const closeShoppingBtn = document.getElementById('closeShoppingBtn');
+const shoppingListEl = document.getElementById('shoppingList');
+
 const instagramBtn = document.getElementById('instagramBtn');
 const instagramSection = document.getElementById('instagramSection');
 const closeInstagramBtn = document.getElementById('closeInstagramBtn');
@@ -959,6 +964,13 @@ function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
     titleEl.textContent = group.location;
     groupEl.appendChild(titleEl);
 
+    if (group.note) {
+      const noteEl = document.createElement('p');
+      noteEl.className = 'place-group-note';
+      noteEl.textContent = group.note;
+      groupEl.appendChild(noteEl);
+    }
+
     const cardsEl = document.createElement('div');
     cardsEl.className = 'place-cards';
 
@@ -1171,6 +1183,59 @@ function renderRestaurants() {
     }))
   }));
   renderPlaceGroups(restaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
+}
+
+// ---------- Recommended shopping (static reference page) ----------
+// Same pattern as WINERIES/HOTELS/RESTAURANTS_BY_LOCATION above. One entry (HDL Retail Park,
+// בר) has no manually-verified place_id — per the "don't guess place_ids" rule in CLAUDE.md, it
+// falls back to a plain (unverified) name+location search instead of buildVerifiedMapsUrl().
+function buildPlainMapsSearchUrl(name, searchLocation) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + searchLocation)}`;
+}
+
+const SHOPPING_BY_LOCATION = [
+  {
+    location: 'טירנה (24/09 — על המסלול)',
+    shops: [
+      { name: 'TEG - Tirana East Gate', rating: 4.4, reviews: '4,711', placeId: 'ChIJM7Topk03UBMR6fJcTC-f6PE', description: 'הקניון הגדול ביותר באלבניה, כולל Zara, H&M, New Yorker, Timberland' },
+      { name: 'Toptani', rating: 4.4, reviews: '6,816', placeId: 'ChIJEYtUYxAxUBMR35dSgVZhF0g', description: 'מרכז העיר, בוטיקים ועיצוב, פודקורט' }
+    ]
+  },
+  {
+    location: 'קוטור (27–30/09 — על המסלול, בלי סטייה)',
+    shops: [
+      { name: 'Shopping Centre Kamelija', rating: 4.1, reviews: '2,699', placeId: 'ChIJJb4lEwUzTBMRimPdbuk-QW0', description: 'מותגים כמו CK, Tommy Hilfiger, Boss, ממש בלב העיר העתיקה' }
+    ]
+  },
+  {
+    location: 'פודגוריצה (סטייה אופציונלית מבודווה, כ-45 דק\' נסיעה — לא על המסלול הרשמי)',
+    note: 'לא בדרך הרגילה — שווה רק אם רוצים להקדיש זמן לשופינג.',
+    shops: [
+      { name: 'BIG Fashion Podgorica', rating: 4.4, reviews: '3,237', placeId: 'ChIJ380lkCDrTRMRww2w1I7PEDk', description: 'הקניון המומלץ ביותר במונטנגרו, מותגים מוכרים במחירים סבירים' },
+      { name: 'Extra Retail Park', rating: 4.3, reviews: '83', placeId: 'ChIJ25TJowjrTRMRA5xWZ0SQ524', description: 'אאוטלטים עם הנחות, פחות ידוע' }
+    ]
+  },
+  {
+    location: 'בר (Bar) — סטייה נוספת מהחוף, כ-20-30 דק\' מבודווה/קוטור',
+    note: 'לא בדרך הרגילה — שווה רק אם רוצים להקדיש זמן לשופינג.',
+    shops: [
+      { name: 'HDL Retail Park', rating: 4.3, reviews: '99', placeId: null, searchLocation: 'Bar, Montenegro', description: 'קניון קטן עם Jumbo, לא ענק אבל נוח אם כבר בסביבה' }
+    ]
+  }
+];
+
+function renderShopping() {
+  const groups = SHOPPING_BY_LOCATION.map(g => ({
+    location: g.location,
+    note: g.note,
+    items: g.shops.map(s => ({
+      name: s.name,
+      cuisine: s.description,
+      note: (s.rating != null && s.reviews != null) ? `${s.rating.toFixed(1)} ⭐ (${s.reviews} ביקורות)` : undefined,
+      mapsUrl: s.placeId ? buildVerifiedMapsUrl(s.name, s.placeId) : buildPlainMapsSearchUrl(s.name, s.searchLocation)
+    }))
+  }));
+  renderPlaceGroups(shoppingListEl, groups, 'פתח בגוגל מפות 🗺️');
 }
 
 // ---------- Nearby restaurants (📍 מסעדות בסביבתי) — live Google Places lookup ----------
@@ -1872,6 +1937,7 @@ function hideAllSpecialSections() {
   hotelsSection.classList.add('hidden');
   restaurantsSection.classList.add('hidden');
   nearbyRestaurantsSection.classList.add('hidden');
+  shoppingSection.classList.add('hidden');
   instagramSection.classList.add('hidden');
   packingSection.classList.add('hidden');
 }
@@ -1906,6 +1972,9 @@ closeRestaurantsBtn.addEventListener('click', closeSpecialSections);
 
 nearbyRestaurantsBtn.addEventListener('click', () => openSpecialSection(nearbyRestaurantsSection));
 closeNearbyRestaurantsBtn.addEventListener('click', closeSpecialSections);
+
+shoppingBtn.addEventListener('click', () => openSpecialSection(shoppingSection));
+closeShoppingBtn.addEventListener('click', closeSpecialSections);
 
 instagramBtn.addEventListener('click', () => {
   openSpecialSection(instagramSection);
@@ -1968,6 +2037,7 @@ render();
 renderWineries();
 renderHotels();
 renderRestaurants();
+renderShopping();
 renderPackingList();
 renderWeatherList();
 weatherStatusEl.textContent = computeLastWeatherUpdateText();
