@@ -1218,6 +1218,7 @@ async function findNearbyRestaurants() {
             const distancePart = formatDistanceHe(r.distanceMeters);
             return {
               name: r.name,
+              cuisine: r.cuisine || undefined,
               note: distancePart ? `${distancePart} · ${ratingPart}` : ratingPart,
               mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
             };
