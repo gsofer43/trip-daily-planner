@@ -1058,7 +1058,12 @@ const HOTELS_BY_LOCATION = [
   {
     location: 'בראט (Berat)',
     searchLocation: 'Berat, Albania',
-    hotels: ['Vista Boutique Hotel']
+    hotels: ['Vista Boutique Hotel', 'Hotel Plaza Berat']
+  },
+  {
+    location: 'סרנדה (Sarandë)',
+    searchLocation: 'Sarandë, Albania',
+    hotels: ['Alyacht Premium Hotel', 'Demi Hotel']
   }
 ];
 
