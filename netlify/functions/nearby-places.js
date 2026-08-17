@@ -1,9 +1,14 @@
-// Proxies "restaurants near me" lookups to the Google Places API (New) so the Google Places
-// API key never reaches the browser. The key lives only in the GOOGLE_PLACES_API_KEY Netlify
-// environment variable (Site settings → Environment variables in the Netlify dashboard) and is
-// read here via process.env — it must never be written into this file or any committed file.
-// See the "Nearby restaurants" section in CLAUDE.md for the full rationale (why a proxy instead
-// of a client-exposed key) and setup steps.
+// Proxies "places near me" lookups (restaurants, tourist attractions, ...) to the Google Places
+// API (New) so the Google Places API key never reaches the browser. The key lives only in the
+// GOOGLE_PLACES_API_KEY Netlify environment variable (Site settings → Environment variables in
+// the Netlify dashboard) and is read here via process.env — it must never be written into this
+// file or any committed file. See the "Nearby places" section in CLAUDE.md for the full
+// rationale (why a proxy instead of a client-exposed key) and setup steps.
+//
+// Shared by both "📍 מסעדות בסביבתי" (restaurants) and "🗺️ אטרקציות בסביבתי" (attractions) on
+// the frontend — they hit this same function with a different `type` query param, so the
+// geolocation flow, API key, quota, and filtering/sorting logic below are all shared; only the
+// Google Places `includedTypes` differs per request.
 //
 // The key's Google Cloud Console restriction is (and should stay) "HTTP referrers" matching
 // this site's domain — the same restriction used for ordinary client-side Maps/Places usage.
@@ -15,9 +20,15 @@
 const PLACES_ENDPOINT = 'https://places.googleapis.com/v1/places:searchNearby';
 const MAX_RESULTS = 12;
 
+// The only Google Places "type" values this proxy will search for — an allowlist rather than
+// passing through whatever the client sends, since this key/quota is shared across the whole
+// site. Add a new entry here (and a matching frontend feature) rather than opening this up.
+const ALLOWED_TYPES = new Set(['restaurant', 'tourist_attraction']);
+
 // Quality bar applied server-side, after Google's response comes back — Google's own
 // "POPULARITY" ranking is not a rating/review-count filter, so we apply one ourselves rather
-// than showing whatever happens to rank high there (see CLAUDE.md "Nearby restaurants").
+// than showing whatever happens to rank high there (see CLAUDE.md "Nearby places"). Shared by
+// every place type this proxy supports.
 const MIN_RATING = 4.5;
 const MIN_REVIEWS = 150;
 const MIN_QUALIFYING_RESULTS = 3;
@@ -28,8 +39,8 @@ const SEARCH_RADII_METERS = [3000, 6000];
 const EARTH_RADIUS_METERS = 6371000;
 
 // Google's priceLevel enum → $ symbols for display. PRICE_LEVEL_UNSPECIFIED and any value not
-// listed here (including a missing field) map to '' so the card omits the price rather than
-// showing something misleading.
+// listed here (including a missing field — the common case for non-restaurant place types) map
+// to '' so the card omits the price rather than showing something misleading.
 const PRICE_LEVEL_SYMBOLS = {
   PRICE_LEVEL_INEXPENSIVE: '$',
   PRICE_LEVEL_MODERATE: '$$',
@@ -47,7 +58,7 @@ function haversineMeters(lat1, lng1, lat2, lng2) {
   return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
+async function searchNearbyPlaces(apiKey, type, lat, lng, radiusMeters) {
   const response = await fetch(PLACES_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -59,7 +70,7 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
       Referer: process.env.URL || process.env.DEPLOY_URL || ''
     },
     body: JSON.stringify({
-      includedTypes: ['restaurant'],
+      includedTypes: [type],
       maxResultCount: MAX_RESULTS,
       rankPreference: 'POPULARITY',
       locationRestriction: {
@@ -86,6 +97,9 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
       rating: typeof p.rating === 'number' ? p.rating : null,
       reviews: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
       address: p.formattedAddress || '',
+      // Generic "subtitle" field — cuisine for restaurants (e.g. "מטבח: איטלקי"), place category
+      // for attractions (e.g. "אתר היסטורי", "מוזיאון"). Same Google field (primaryTypeDisplayName)
+      // works the same way for any place type, so both features reuse it as-is.
       cuisine: (p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || '',
       price: PRICE_LEVEL_SYMBOLS[p.priceLevel] || '',
       distanceMeters: (p.location && typeof p.location.latitude === 'number' && typeof p.location.longitude === 'number')
@@ -95,11 +109,11 @@ async function searchNearbyRestaurants(apiKey, lat, lng, radiusMeters) {
     .filter(r => r.name && r.placeId);
 }
 
-// Keeps only restaurants meeting the quality bar (rating/review-count filter, unchanged), then
-// sorts the survivors by distance ascending (closest first) — never falls back to the unfiltered
-// list, even if that leaves few/no results.
-function filterAndSortByQuality(restaurants) {
-  return restaurants
+// Keeps only places meeting the quality bar (rating/review-count filter, unchanged), then sorts
+// the survivors by distance ascending (closest first) — never falls back to the unfiltered list,
+// even if that leaves few/no results.
+function filterAndSortByQuality(places) {
+  return places
     .filter(r => r.rating != null && r.reviews != null && r.rating >= MIN_RATING && r.reviews >= MIN_REVIEWS)
     .sort((a, b) => {
       if (a.distanceMeters == null && b.distanceMeters == null) return 0;
@@ -120,6 +134,11 @@ exports.handler = async (event) => {
   }
 
   const params = event.queryStringParameters || {};
+  const type = params.type;
+  if (!ALLOWED_TYPES.has(type)) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'פרמטר type חסר או לא נתמך' }) };
+  }
+
   const lat = parseFloat(params.lat);
   const lng = parseFloat(params.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -129,7 +148,7 @@ exports.handler = async (event) => {
   try {
     let qualifying = [];
     for (const radius of SEARCH_RADII_METERS) {
-      const raw = await searchNearbyRestaurants(apiKey, lat, lng, radius);
+      const raw = await searchNearbyPlaces(apiKey, type, lat, lng, radius);
       qualifying = filterAndSortByQuality(raw);
       if (qualifying.length >= MIN_QUALIFYING_RESULTS) break;
     }
@@ -137,17 +156,17 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-      body: JSON.stringify({ restaurants: qualifying })
+      body: JSON.stringify({ places: qualifying })
     };
   } catch (err) {
     if (typeof err.statusCode === 'number') {
-      // Logged server-side (visible via `netlify logs --function nearby-restaurants`) so the
-      // real Google error — e.g. REQUEST_DENIED, an unenabled API — is diagnosable without
-      // having to reproduce the request manually. The client only gets the generic message.
+      // Logged server-side (visible via `netlify logs --function nearby-places`) so the real
+      // Google error — e.g. REQUEST_DENIED, an unenabled API — is diagnosable without having to
+      // reproduce the request manually. The client only gets the generic message.
       console.error(`Google Places API error (status ${err.statusCode}): ${err.message}`);
       return { statusCode: err.statusCode, body: JSON.stringify({ error: err.message }) };
     }
-    console.error('nearby-restaurants: failed to reach Google Places API:', err);
+    console.error('nearby-places: failed to reach Google Places API:', err);
     return { statusCode: 502, body: JSON.stringify({ error: 'החיבור ל-Google Places API נכשל' }) };
   }
 };
