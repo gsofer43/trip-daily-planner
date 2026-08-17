@@ -315,6 +315,13 @@ const findNearbyRestaurantsBtn = document.getElementById('findNearbyRestaurantsB
 const nearbyRestaurantsStatusEl = document.getElementById('nearbyRestaurantsStatus');
 const nearbyRestaurantsListEl = document.getElementById('nearbyRestaurantsList');
 
+const nearbyAttractionsBtn = document.getElementById('nearbyAttractionsBtn');
+const nearbyAttractionsSection = document.getElementById('nearbyAttractionsSection');
+const closeNearbyAttractionsBtn = document.getElementById('closeNearbyAttractionsBtn');
+const findNearbyAttractionsBtn = document.getElementById('findNearbyAttractionsBtn');
+const nearbyAttractionsStatusEl = document.getElementById('nearbyAttractionsStatus');
+const nearbyAttractionsListEl = document.getElementById('nearbyAttractionsList');
+
 const shoppingBtn = document.getElementById('shoppingBtn');
 const shoppingSection = document.getElementById('shoppingSection');
 const closeShoppingBtn = document.getElementById('closeShoppingBtn');
@@ -1240,13 +1247,15 @@ function renderShopping() {
   renderPlaceGroups(shoppingListEl, groups, 'פתח בגוגל מפות 🗺️');
 }
 
-// ---------- Nearby restaurants (📍 מסעדות בסביבתי) — live Google Places lookup ----------
-// Unlike RESTAURANTS_BY_LOCATION above (static, curated), this asks the browser for the
-// user's current location and calls a Netlify Function proxy (netlify/functions/
-// nearby-restaurants.js) that queries the Google Places API server-side — the Places API key
-// never reaches this file or the browser at all. See CLAUDE.md for the full setup/rationale.
-// Formats a straight-line distance in meters (as returned by the nearby-restaurants function)
-// for display: under 1000m as whole meters ("200 מ'"), 1000m and above as km with one decimal
+// ---------- Nearby places (📍 מסעדות בסביבתי / 🗺️ אטרקציות בסביבתי) — live Google Places lookup ----------
+// Unlike RESTAURANTS_BY_LOCATION above (static, curated), these ask the browser for the user's
+// current location and call a shared Netlify Function proxy (netlify/functions/nearby-places.js)
+// that queries the Google Places API server-side — the Places API key never reaches this file or
+// the browser at all. See CLAUDE.md for the full setup/rationale. Both features below share the
+// same geolocation flow, API key, quota, and filtering/sorting logic; only the Google Places
+// `type` and card labels differ, via NEARBY_PLACES_CONFIGS.
+// Formats a straight-line distance in meters (as returned by the nearby-places function) for
+// display: under 1000m as whole meters ("200 מ'"), 1000m and above as km with one decimal
 // ("1.2 ק\"מ"). Returns '' when the distance is unknown, so callers can drop it cleanly.
 function formatDistanceHe(distanceMeters) {
   if (typeof distanceMeters !== 'number' || !Number.isFinite(distanceMeters)) return '';
@@ -1254,65 +1263,94 @@ function formatDistanceHe(distanceMeters) {
   return `${(distanceMeters / 1000).toFixed(1)} ק"מ`;
 }
 
-async function findNearbyRestaurants() {
+const NEARBY_PLACES_CONFIGS = {
+  restaurant: {
+    placesType: 'restaurant',
+    btn: findNearbyRestaurantsBtn,
+    statusEl: nearbyRestaurantsStatusEl,
+    listEl: nearbyRestaurantsListEl,
+    groupLabel: 'מסעדות בסביבתך',
+    emptyMessage: 'לא נמצאו מסעדות מדורגות גבוה בסביבה הקרובה (4.5+ כוכבים, 150+ ביקורות).',
+    searchingMessage: 'מחפש מסעדות בסביבה...',
+    resultMessage: count => `נמצאו ${count} מסעדות (מבוסס Google Places).`,
+    failureMessage: 'שליפת מסעדות נכשלה (יתכן שאין חיבור לאינטרנט, או שהשירות אינו זמין כרגע).'
+  },
+  tourist_attraction: {
+    placesType: 'tourist_attraction',
+    btn: findNearbyAttractionsBtn,
+    statusEl: nearbyAttractionsStatusEl,
+    listEl: nearbyAttractionsListEl,
+    groupLabel: 'אטרקציות בסביבתך',
+    emptyMessage: 'לא נמצאו אטרקציות מדורגות גבוה בסביבה הקרובה (4.5+ כוכבים, 150+ ביקורות).',
+    searchingMessage: 'מחפש אטרקציות בסביבה...',
+    resultMessage: count => `נמצאו ${count} אטרקציות (מבוסס Google Places).`,
+    failureMessage: 'שליפת אטרקציות נכשלה (יתכן שאין חיבור לאינטרנט, או שהשירות אינו זמין כרגע).'
+  }
+};
+
+async function findNearbyPlaces(configKey) {
+  const config = NEARBY_PLACES_CONFIGS[configKey];
+  const { placesType, btn, statusEl, listEl, groupLabel, emptyMessage, searchingMessage, resultMessage, failureMessage } = config;
+
   if (!navigator.geolocation) {
-    nearbyRestaurantsStatusEl.textContent = 'הדפדפן הזה לא תומך באיתור מיקום.';
+    statusEl.textContent = 'הדפדפן הזה לא תומך באיתור מיקום.';
     return;
   }
 
-  findNearbyRestaurantsBtn.disabled = true;
-  nearbyRestaurantsListEl.innerHTML = '';
-  nearbyRestaurantsStatusEl.textContent = 'מאתר את המיקום שלך...';
+  btn.disabled = true;
+  listEl.innerHTML = '';
+  statusEl.textContent = 'מאתר את המיקום שלך...';
 
   navigator.geolocation.getCurrentPosition(
     async position => {
       const { latitude, longitude } = position.coords;
-      nearbyRestaurantsStatusEl.textContent = 'מחפש מסעדות בסביבה...';
+      statusEl.textContent = searchingMessage;
       try {
-        const res = await fetch(`/.netlify/functions/nearby-restaurants?lat=${latitude}&lng=${longitude}`);
+        const res = await fetch(`/.netlify/functions/nearby-places?type=${placesType}&lat=${latitude}&lng=${longitude}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'שגיאה בשליפת מסעדות');
+        if (!res.ok) throw new Error(data.error || 'שגיאה בשליפת מקומות');
 
-        if (!data.restaurants || data.restaurants.length === 0) {
+        if (!data.places || data.places.length === 0) {
           // The function already filters to rating ≥4.5 with ≥150 reviews and retries at a wider
           // radius before giving up — an empty list here means that quality bar genuinely wasn't
           // met nearby, not that the search itself failed.
-          nearbyRestaurantsStatusEl.textContent = 'לא נמצאו מסעדות מדורגות גבוה בסביבה הקרובה (4.5+ כוכבים, 150+ ביקורות).';
+          statusEl.textContent = emptyMessage;
           return;
         }
 
         const groups = [{
-          location: 'מסעדות בסביבתך',
-          items: data.restaurants.map(r => {
-            const ratingPart = (r.rating != null && r.reviews != null)
-              ? `${r.rating.toFixed(1)} ⭐ (${r.reviews.toLocaleString('he-IL')} ביקורות)${r.price ? ` · ${r.price}` : ''}`
-              : r.address;
-            const distancePart = formatDistanceHe(r.distanceMeters);
+          location: groupLabel,
+          items: data.places.map(p => {
+            const ratingPart = (p.rating != null && p.reviews != null)
+              ? `${p.rating.toFixed(1)} ⭐ (${p.reviews.toLocaleString('he-IL')} ביקורות)${p.price ? ` · ${p.price}` : ''}`
+              : p.address;
+            const distancePart = formatDistanceHe(p.distanceMeters);
             return {
-              name: r.name,
-              cuisine: r.cuisine || undefined,
+              name: p.name,
+              cuisine: p.cuisine || undefined,
               note: distancePart ? `${distancePart} · ${ratingPart}` : ratingPart,
-              mapsUrl: buildVerifiedMapsUrl(r.name, r.placeId)
+              mapsUrl: buildVerifiedMapsUrl(p.name, p.placeId)
             };
           })
         }];
-        renderPlaceGroups(nearbyRestaurantsListEl, groups, 'פתח בגוגל מפות 🗺️');
-        nearbyRestaurantsStatusEl.textContent = `נמצאו ${data.restaurants.length} מסעדות (מבוסס Google Places).`;
+        renderPlaceGroups(listEl, groups, 'פתח בגוגל מפות 🗺️');
+        statusEl.textContent = resultMessage(data.places.length);
       } catch (err) {
-        nearbyRestaurantsStatusEl.textContent = 'שליפת מסעדות נכשלה (יתכן שאין חיבור לאינטרנט, או שהשירות אינו זמין כרגע).';
+        statusEl.textContent = failureMessage;
       } finally {
-        findNearbyRestaurantsBtn.disabled = false;
+        btn.disabled = false;
       }
     },
     () => {
-      nearbyRestaurantsStatusEl.textContent = 'לא הצלחנו לקבל את המיקום שלך (בדקו הרשאות מיקום בדפדפן).';
-      findNearbyRestaurantsBtn.disabled = false;
+      statusEl.textContent = 'לא הצלחנו לקבל את המיקום שלך (בדקו הרשאות מיקום בדפדפן).';
+      btn.disabled = false;
     },
     { timeout: 10000 }
   );
 }
 
-findNearbyRestaurantsBtn.addEventListener('click', findNearbyRestaurants);
+findNearbyRestaurantsBtn.addEventListener('click', () => findNearbyPlaces('restaurant'));
+findNearbyAttractionsBtn.addEventListener('click', () => findNearbyPlaces('tourist_attraction'));
 
 // ---------- Instagram inspiration (📸 השראה מאינסטגרם) ----------
 // נתונים קבועים בקוד (data/instagramLinks.js), לא ניתנים לעריכה מה-UI.
@@ -1939,6 +1977,7 @@ function hideAllSpecialSections() {
   hotelsSection.classList.add('hidden');
   restaurantsSection.classList.add('hidden');
   nearbyRestaurantsSection.classList.add('hidden');
+  nearbyAttractionsSection.classList.add('hidden');
   shoppingSection.classList.add('hidden');
   instagramSection.classList.add('hidden');
   packingSection.classList.add('hidden');
@@ -1974,6 +2013,9 @@ closeRestaurantsBtn.addEventListener('click', closeSpecialSections);
 
 nearbyRestaurantsBtn.addEventListener('click', () => openSpecialSection(nearbyRestaurantsSection));
 closeNearbyRestaurantsBtn.addEventListener('click', closeSpecialSections);
+
+nearbyAttractionsBtn.addEventListener('click', () => openSpecialSection(nearbyAttractionsSection));
+closeNearbyAttractionsBtn.addEventListener('click', closeSpecialSections);
 
 shoppingBtn.addEventListener('click', () => openSpecialSection(shoppingSection));
 closeShoppingBtn.addEventListener('click', closeSpecialSections);
