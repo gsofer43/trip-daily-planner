@@ -1059,6 +1059,8 @@ function buildBookingSearchUrl(hotelName, searchLocation) {
 }
 
 // searchLocation מגדיר מחרוזת ניקוי לחיפוש בגוגל מפות (בלי תוספות עברית), נפרד מ-location שמוצג למשתמש.
+// פריט ב-hotels יכול להיות מחרוזת (שם בלבד — כפתור בוקינג מפנה לחיפוש) או אובייקט
+// { name, bookingUrl } כשיש קישור ישיר לעמוד המלון ב-Booking (עדיף על עמוד תוצאות חיפוש).
 const HOTELS_BY_LOCATION = [
   {
     location: 'Rijeka Crnojevića',
@@ -1084,17 +1086,40 @@ const HOTELS_BY_LOCATION = [
     location: 'סרנדה (Sarandë)',
     searchLocation: 'Sarandë, Albania',
     hotels: ['Alyacht Premium Hotel', 'Demi Hotel']
+  },
+  {
+    location: 'טירנה (Tirana)',
+    searchLocation: 'Tirana, Albania',
+    hotels: [
+      { name: 'Vila Koja Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vila-koja-boutique.html' },
+      { name: 'Rogner Hotel Tirana', bookingUrl: 'https://www.booking.com/hotel/al/rogner-europark.html' },
+      { name: 'Tirana Marriott Hotel', bookingUrl: 'https://www.booking.com/hotel/al/tirana-marriott.html' }
+    ]
+  },
+  {
+    location: 'בודווה (Budva)',
+    searchLocation: 'Budva, Montenegro',
+    hotels: [
+      { name: 'Avala Resort & Villas', bookingUrl: 'https://www.booking.com/hotel/me/avala-resort-villas.html' },
+      { name: 'Infinity Hotel & More', bookingUrl: 'https://www.booking.com/hotel/me/infinity-amp-more.html' },
+      { name: 'Iberostar Waves Slavija', bookingUrl: 'https://www.booking.com/hotel/me/slavija-budva.html' },
+      { name: 'Merit Starlit Hotel & Residences', bookingUrl: 'https://www.booking.com/hotel/me/merit-starlit-amp-residences.html' },
+      { name: 'Crowne Plaza Budva by IHG', bookingUrl: 'https://www.booking.com/hotel/me/budva-budva.html' }
+    ]
   }
 ];
 
 function renderHotels() {
   const groups = HOTELS_BY_LOCATION.map(g => ({
     location: g.location,
-    items: g.hotels.map(name => ({
-      name,
-      mapsUrl: buildHotelMapsSearchUrl(name, g.searchLocation),
-      secondaryUrl: buildBookingSearchUrl(name, g.searchLocation)
-    }))
+    items: g.hotels.map(entry => {
+      const hotel = typeof entry === 'string' ? { name: entry } : entry;
+      return {
+        name: hotel.name,
+        mapsUrl: buildHotelMapsSearchUrl(hotel.name, g.searchLocation),
+        secondaryUrl: hotel.bookingUrl || buildBookingSearchUrl(hotel.name, g.searchLocation)
+      };
+    })
   }));
   renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️', 'הזמנה בבוקינג 🛏️');
 }
