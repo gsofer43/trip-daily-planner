@@ -1709,6 +1709,13 @@ function renderPackingList() {
 const WEATHER_CACHE_KEY = 'travelPlannerWeatherCache';
 const WEATHER_FORECAST_MAX_DAYS_AHEAD = 16; // Open-Meteo's free daily forecast horizon
 const WEATHER_GROUP_MERGE_KM = 8; // מרחק מרבי (ק"מ) בין לינות ימים סמוכים כדי לראות בהם אותו בסיס
+// כשיום רחוק מדי לתחזית אמיתית, מציגים במקומה ממוצע רב-שנתי לאותו תאריך לוח מ-Open-Meteo
+// Archive (נתוני ERA5 מדודים משנים קודמות). זה *לא* תחזית — מסומן ומעוצב ככזה (weather-note-muted),
+// ומוחלף אוטומטית בתחזית אמיתית ברגע שהתאריך נכנס לטווח ה-16 יום והמשתמש מרענן.
+const WEATHER_CLIMATE_YEARS = 5;        // כמה שנים אחורה לממצע
+const WEATHER_CLIMATE_WINDOW_DAYS = 3;  // ± ימים סביב תאריך היעד שנכללים בממוצע
+const WEATHER_CLIMATE_RAIN_MM = 1;      // סכום משקעים יומי (מ"מ) שמעליו היום נחשב "גשום"
+const WEATHER_FETCH_CONCURRENCY = 2;    // כמה שליפות מקבילות מקסימום — Open-Meteo Archive מחזיר 429 על יותר
 
 function loadWeatherCache() {
   try {
@@ -1821,13 +1828,74 @@ function buildClothingNote(tempMin, precipProb) {
   return 'מזג אוויר נעים';
 }
 
+// מרחק בימים בין שני תאריכים תוך התעלמות מהשנה (עוטף סביב גבול דצמבר/ינואר). משמש רק לסינון
+// הימים ההיסטוריים שנכללים בממוצע הרב-שנתי — לא לשליפה עצמה.
+function calendarDayDistance(aDate, bDate) {
+  const doy = d => Math.floor(
+    (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000
+  );
+  let diff = Math.abs(doy(aDate) - doy(bDate));
+  if (diff > 182) diff = 365 - diff;
+  return diff;
+}
+
+// ממוצע רב-שנתי לתאריך לוח נתון (± WEATHER_CLIMATE_WINDOW_DAYS) מ-Open-Meteo Archive, על פני
+// WEATHER_CLIMATE_YEARS השנים שקדמו לשנת היעד. בקשה אחת למיקום; הסינון לחלון התאריכים נעשה
+// כאן בצד הלקוח. מחזיר { status: 'climate', ... } או זורק/מחזיר 'no-data' אם אין נתונים.
+async function fetchClimateAverage(lat, lng, isoDate) {
+  const target = new Date(isoDate + 'T00:00:00Z');
+  const endYear = target.getUTCFullYear() - 1;
+  const startYear = endYear - (WEATHER_CLIMATE_YEARS - 1);
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}` +
+    `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+  let res = await fetch(url);
+  if (res.status === 429) { // הגבלת קצב — המתנה קצרה וניסיון אחד נוסף
+    await new Promise(r => setTimeout(r, 1200));
+    res = await fetch(url);
+  }
+  if (!res.ok) throw new Error('bad status ' + res.status);
+  const daily = (await res.json()).daily;
+  if (!daily || !Array.isArray(daily.time) || daily.time.length === 0) return { status: 'no-data' };
+
+  const maxes = [];
+  const mins = [];
+  const precip = [];
+  daily.time.forEach((t, i) => {
+    if (calendarDayDistance(new Date(t + 'T00:00:00Z'), target) > WEATHER_CLIMATE_WINDOW_DAYS) return;
+    const mx = daily.temperature_2m_max[i];
+    const mn = daily.temperature_2m_min[i];
+    const pr = daily.precipitation_sum[i];
+    if (typeof mx === 'number') maxes.push(mx);
+    if (typeof mn === 'number') mins.push(mn);
+    if (typeof pr === 'number') precip.push(pr);
+  });
+  if (maxes.length === 0 || mins.length === 0) return { status: 'no-data' };
+
+  const avg = arr => arr.reduce((s, n) => s + n, 0) / arr.length;
+  return {
+    status: 'climate',
+    tempMax: avg(maxes),
+    tempMin: avg(mins),
+    precipProb: precip.length
+      ? Math.round(precip.filter(p => p >= WEATHER_CLIMATE_RAIN_MM).length / precip.length * 100)
+      : undefined,
+    sampleYears: WEATHER_CLIMATE_YEARS
+  };
+}
+
 async function fetchDayWeather(day) {
   const anchor = getDayAnchorStop(day);
   const isoDate = getDayIsoDate(day);
   if (!anchor || !isoDate) return null; // nothing to fetch for this day
 
   if (daysFromToday(isoDate) > WEATHER_FORECAST_MAX_DAYS_AHEAD) {
-    return { status: 'too-far' };
+    try {
+      return await fetchClimateAverage(anchor.lat, anchor.lng, isoDate);
+    } catch (err) {
+      console.warn(`שליפת ממוצע רב-שנתי נכשלה עבור "${day.title}"`, err);
+      return { status: 'too-far' }; // נפילה חיננית לחיווי "עוד לא זמין" הישן
+    }
   }
 
   try {
@@ -1866,6 +1934,14 @@ function weatherRowContent(day) {
         className: 'weather-note'
       };
     }
+    case 'climate': {
+      const note = buildClothingNote(forecast.tempMin, forecast.precipProb);
+      const precipText = typeof forecast.precipProb === 'number' ? ` · ${Math.round(forecast.precipProb)}% מהימים גשומים` : '';
+      return {
+        text: `${Math.round(forecast.tempMax)}°/${Math.round(forecast.tempMin)}° · ממוצע רב-שנתי לתאריך (${forecast.sampleYears} שנים), לא תחזית${precipText} · ${note}`,
+        className: 'weather-note-muted'
+      };
+    }
     case 'too-far':
       return { text: 'עוד לא זמין — נסה שוב קרוב יותר לתאריך', className: 'weather-note-muted' };
     case 'no-data':
@@ -1898,14 +1974,29 @@ function renderWeatherList() {
 }
 
 function computeLastWeatherUpdateText() {
-  // רק תחזיות שבאמת התקבלו (status 'ok') נחשבות ל"עדכון" - אחרת, אם כל הימים עדיין רחוקים
-  // מדי (too-far) או שהשליפה נכשלה, יוצג כאן "עודכן לאחרונה" מטעה על עדכון שבפועל לא הביא
-  // שום נתון אמיתי.
+  // רק שליפות שבאמת החזירו נתון (תחזית 'ok' או ממוצע רב-שנתי 'climate') נחשבות ל"עדכון" -
+  // אחרת, אם כל הימים נכשלו/רחוקים מדי גם לממוצע (too-far), יוצג כאן "עודכן לאחרונה" מטעה
+  // על עדכון שבפועל לא הביא שום נתון.
   const timestamps = Object.values(weatherCache)
-    .filter(e => e && e.forecast && e.forecast.status === 'ok')
+    .filter(e => e && e.forecast && (e.forecast.status === 'ok' || e.forecast.status === 'climate'))
     .map(e => e.fetchedAt);
   if (timestamps.length === 0) return '';
   return `עודכן לאחרונה: ${new Date(Math.max(...timestamps)).toLocaleString('he-IL')}`;
+}
+
+// מריץ fn על כל האיברים עם מקביליות מוגבלת (limit), ושומר על סדר התוצאות המקורי. נדרש כי
+// שליפת הממוצעים הרב-שנתיים פוגעת ב-Open-Meteo Archive, שמחזיר 429 על יותר מדי בקשות מקבילות.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }
 
 async function refreshAllWeather() {
@@ -1913,22 +2004,23 @@ async function refreshAllWeather() {
   if (groups.length === 0) return;
 
   weatherBtn.disabled = true;
-  weatherStatusEl.textContent = 'טוען תחזית...';
+  weatherStatusEl.textContent = 'טוען תחזית וממוצעים...';
 
-  const results = await Promise.all(groups.map(async group => ({ day: group.repDay, forecast: await fetchDayWeather(group.repDay) })));
+  const results = await mapWithConcurrency(groups, WEATHER_FETCH_CONCURRENCY,
+    async group => ({ day: group.repDay, forecast: await fetchDayWeather(group.repDay) }));
 
   let successCount = 0;
   results.forEach(({ day, forecast }) => {
     if (!forecast) return;
     weatherCache[day.id] = { forecast, fetchedAt: Date.now() };
-    if (forecast.status === 'ok') successCount++;
+    if (forecast.status === 'ok' || forecast.status === 'climate') successCount++;
   });
   saveWeatherCache(weatherCache);
 
   weatherBtn.disabled = false;
   weatherStatusEl.textContent = successCount > 0
     ? computeLastWeatherUpdateText()
-    : 'לא הצלחנו לעדכן תחזית כרגע (יתכן שאין חיבור לאינטרנט, או שכל הימים עדיין רחוקים מדי).';
+    : 'לא הצלחנו לעדכן תחזית כרגע (יתכן שאין חיבור לאינטרנט).';
   renderWeatherList();
 }
 
