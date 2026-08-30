@@ -1387,8 +1387,8 @@ findNearbyAttractionsBtn.addEventListener('click', () => findNearbyPlaces('touri
 // עצל (lazy) רק כשהטאב נפתח בפועל, לא בטעינת האתר. type 'profile'/'story' תמיד נשארים
 // ככרטיס טקסט פשוט (לא ניתנים להטמעה). אם הטמעה ספציפית לא נטענת בזמן סביר, נופלים חזרה
 // לאותו כרטיס טקסט פשוט — עדיף להראות פחות אבל נכון מאשר widget שבור.
-const INSTAGRAM_TYPE_LABELS = { post: 'פוסט', reel: 'רילס', profile: 'פרופיל', story: 'סטורי' };
-const INSTAGRAM_EMBEDDABLE_TYPES = ['post', 'reel'];
+const INSTAGRAM_TYPE_LABELS = { post: 'פוסט', reel: 'רילס', profile: 'פרופיל', story: 'סטורי', facebook: 'פייסבוק' };
+const INSTAGRAM_EMBEDDABLE_TYPES = ['post', 'reel']; // 'facebook' לא כלול בכוונה — הטמעות פייסבוק לא אמינות
 // כשכל ההטמעות בטאב נטענות ביחד (עד 15), אינסטגרם מעבד אותן בערך בטור + מגבלת חיבורים
 // של הדפדפן, כך שחלקן לוקחות הרבה יותר זמן מאחרות באותה טעינה בדיוק — נצפה בפועל שכל
 // ה-URLs מצליחים בסוף, פשוט לא באותו הזמן. לכן לא נופלים חזרה לפי טיימר עיוור; במקום זאת
@@ -1400,11 +1400,12 @@ function buildInstagramPlainCard(item) {
   const card = document.createElement('div');
   card.className = 'place-card instagram-card';
   card.dataset.igType = item.type;
+  const linkLabel = item.type === 'facebook' ? 'פתיחה בפייסבוק 👍' : 'פתיחה באינסטגרם 📸';
   card.innerHTML = `
     <span class="instagram-type-badge">${escapeHtml(INSTAGRAM_TYPE_LABELS[item.type] || item.type)}</span>
     <p class="place-name">${escapeHtml(item.caption)}</p>
     ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
-    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">פתיחה באינסטגרם 📸</a>
+    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${linkLabel}</a>
   `;
   return card;
 }
