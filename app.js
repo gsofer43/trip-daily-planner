@@ -1067,6 +1067,10 @@ function buildBookingSearchUrl(hotelName, searchLocation) {
 // checkin/checkout הם ברירת המחדל בטופס המעקב, בפורמט "DD/MM" של day.date — נגזרו מהמסלול
 // עצמו (יום ההגעה ליעד ויום העזיבה שלו), ומומרים לשנה מלאה דרך getTripYear(). המשתמש יכול
 // לערוך אותם לפני אישור.
+// agodaUrl קיים רק ב-13 מתוך 22 המלונות. הוא אותר ע"י scripts/hotel-watch/resolve-agoda-urls.js,
+// שמנחש slug מהשם, פותח את הדף, ומקבל אותו רק אם ה-h1 שאגודה מרנדרת תואם לשם המלון. ל-9 שלא
+// אומתו (בעיקר אכסניות קטנות ברייקה, בת׳ת׳ ובסרנדה) פשוט אין agodaUrl — והבודק מדווח עליהם
+// Agoda = error עם הסבר, במקום לנחש עמוד ולבדוק מלון אחר. אל תוסיפו כאן URL בלי לאמת אותו.
 const HOTELS_BY_LOCATION = [
   {
     location: 'Rijeka Crnojevića',
@@ -1074,9 +1078,18 @@ const HOTELS_BY_LOCATION = [
     checkin: '11/09',
     checkout: '12/09',
     hotels: [
-      { name: 'Casarogna Luxury Rooms', bookingUrl: 'https://www.booking.com/hotel/me/skala.html' },
-      { name: 'Rooms Dujeva Drago-Resort', bookingUrl: 'https://www.booking.com/hotel/me/rooms-dujeva.html' },
-      { name: 'Village house - Novak Rijecani', bookingUrl: 'https://www.booking.com/hotel/me/rooms-novak-rijecani.html' }
+      {
+        name: 'Casarogna Luxury Rooms',
+        bookingUrl: 'https://www.booking.com/hotel/me/skala.html'
+      },
+      {
+        name: 'Rooms Dujeva Drago-Resort',
+        bookingUrl: 'https://www.booking.com/hotel/me/rooms-dujeva.html'
+      },
+      {
+        name: 'Village house - Novak Rijecani',
+        bookingUrl: 'https://www.booking.com/hotel/me/rooms-novak-rijecani.html'
+      }
     ]
   },
   {
@@ -1085,10 +1098,23 @@ const HOTELS_BY_LOCATION = [
     checkin: '12/09',
     checkout: '15/09',
     hotels: [
-      { name: 'Molla Guest House', bookingUrl: 'https://www.booking.com/hotel/al/molla-guest-house.html' },
-      { name: 'Guesthouse Gjin Thana', bookingUrl: 'https://www.booking.com/hotel/al/guesthouse-quot-gjin-thana-quot.html' },
-      { name: 'Thethi Paradise Hotel & Restaurant', bookingUrl: 'https://www.booking.com/hotel/al/thethi-paradise.html' },
-      { name: 'Vidis Chalet Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vidis-chalet.html' }
+      {
+        name: 'Molla Guest House',
+        bookingUrl: 'https://www.booking.com/hotel/al/molla-guest-house.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/molla-guest-house/hotel/theth-al.html'
+      },
+      {
+        name: 'Guesthouse Gjin Thana',
+        bookingUrl: 'https://www.booking.com/hotel/al/guesthouse-quot-gjin-thana-quot.html'
+      },
+      {
+        name: 'Thethi Paradise Hotel & Restaurant',
+        bookingUrl: 'https://www.booking.com/hotel/al/thethi-paradise.html'
+      },
+      {
+        name: 'Vidis Chalet Boutique Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/vidis-chalet.html'
+      }
     ]
   },
   {
@@ -1097,9 +1123,21 @@ const HOTELS_BY_LOCATION = [
     checkin: '15/09',
     checkout: '17/09',
     hotels: [
-      { name: 'TRIBUTE Hotel', bookingUrl: 'https://www.booking.com/hotel/al/tribute.html' },
-      { name: 'The Red Bricks Hotel', bookingUrl: 'https://www.booking.com/hotel/al/the-red-bricks.html' },
-      { name: 'The Roots Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/boutique-the-roots.html' }
+      {
+        name: 'TRIBUTE Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/tribute.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/tribute-hotel/hotel/shkoder-al.html'
+      },
+      {
+        name: 'The Red Bricks Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/the-red-bricks.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/the-red-bricks-hotel/hotel/shkoder-al.html'
+      },
+      {
+        name: 'The Roots Boutique Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/boutique-the-roots.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/the-roots-boutique-hotel/hotel/shkoder-al.html'
+      }
     ]
   },
   {
@@ -1108,8 +1146,16 @@ const HOTELS_BY_LOCATION = [
     checkin: '17/09',
     checkout: '19/09',
     hotels: [
-      { name: 'Vista Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vista-boutique.html' },
-      { name: 'Hotel Plaza Berat', bookingUrl: 'https://www.booking.com/hotel/al/plaza-berat.html' }
+      {
+        name: 'Vista Boutique Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/vista-boutique.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/vista-boutique-hotel/hotel/berat-al.html'
+      },
+      {
+        name: 'Hotel Plaza Berat',
+        bookingUrl: 'https://www.booking.com/hotel/al/plaza-berat.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/hotel-plaza-berat/hotel/berat-al.html'
+      }
     ]
   },
   {
@@ -1118,8 +1164,14 @@ const HOTELS_BY_LOCATION = [
     checkin: '19/09',
     checkout: '21/09',
     hotels: [
-      { name: 'Alyacht Premium Hotel', bookingUrl: 'https://www.booking.com/hotel/al/yacht-premium-sarande.html' },
-      { name: 'Demi Hotel', bookingUrl: 'https://www.booking.com/hotel/al/demi.html' }
+      {
+        name: 'Alyacht Premium Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/yacht-premium-sarande.html'
+      },
+      {
+        name: 'Demi Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/demi.html'
+      }
     ]
   },
   {
@@ -1128,9 +1180,21 @@ const HOTELS_BY_LOCATION = [
     checkin: '23/09',
     checkout: '25/09',
     hotels: [
-      { name: 'Vila Koja Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vila-koja-boutique.html' },
-      { name: 'Rogner Hotel Tirana', bookingUrl: 'https://www.booking.com/hotel/al/rogner-europark.html' },
-      { name: 'Tirana Marriott Hotel', bookingUrl: 'https://www.booking.com/hotel/al/tirana-marriott.html' }
+      {
+        name: 'Vila Koja Boutique Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/vila-koja-boutique.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/vila-koja-boutique-hotel/hotel/tirana-al.html'
+      },
+      {
+        name: 'Rogner Hotel Tirana',
+        bookingUrl: 'https://www.booking.com/hotel/al/rogner-europark.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/rogner-hotel-tirana/hotel/tirana-al.html'
+      },
+      {
+        name: 'Tirana Marriott Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/tirana-marriott.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/tirana-marriott/hotel/tirana-al.html'
+      }
     ]
   },
   {
@@ -1139,11 +1203,30 @@ const HOTELS_BY_LOCATION = [
     checkin: '25/09',
     checkout: '27/09',
     hotels: [
-      { name: 'Avala Resort & Villas', bookingUrl: 'https://www.booking.com/hotel/me/avala-resort-villas.html' },
-      { name: 'Infinity Hotel & More', bookingUrl: 'https://www.booking.com/hotel/me/infinity-amp-more.html' },
-      { name: 'Iberostar Waves Slavija', bookingUrl: 'https://www.booking.com/hotel/me/slavija-budva.html' },
-      { name: 'Merit Starlit Hotel & Residences', bookingUrl: 'https://www.booking.com/hotel/me/merit-starlit-amp-residences.html' },
-      { name: 'Crowne Plaza Budva by IHG', bookingUrl: 'https://www.booking.com/hotel/me/budva-budva.html' }
+      {
+        name: 'Avala Resort & Villas',
+        bookingUrl: 'https://www.booking.com/hotel/me/avala-resort-villas.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/avala-resort-villas/hotel/budva-me.html'
+      },
+      {
+        name: 'Infinity Hotel & More',
+        bookingUrl: 'https://www.booking.com/hotel/me/infinity-amp-more.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/infinity-hotel-more/hotel/budva-me.html'
+      },
+      {
+        name: 'Iberostar Waves Slavija',
+        bookingUrl: 'https://www.booking.com/hotel/me/slavija-budva.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/slavija-budva-hotel-h9767289/hotel/budva-me.html'
+      },
+      {
+        name: 'Merit Starlit Hotel & Residences',
+        bookingUrl: 'https://www.booking.com/hotel/me/merit-starlit-amp-residences.html'
+      },
+      {
+        name: 'Crowne Plaza Budva by IHG',
+        bookingUrl: 'https://www.booking.com/hotel/me/budva-budva.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/hotel-budva/hotel/budva-me.html'
+      }
     ]
   }
 ];
@@ -1245,6 +1328,7 @@ async function submitHotelWatch(hotel, group, checkin, checkout, formEl) {
         location: group.location,
         searchLocation: group.searchLocation,
         bookingUrl: hotel.bookingUrl,
+        agodaUrl: hotel.agodaUrl || null,
         checkin,
         checkout
       })

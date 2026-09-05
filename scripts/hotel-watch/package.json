@@ -1,0 +1,16 @@
+{
+  "name": "hotel-watch-checker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled hotel-availability checker. Deliberately kept in its own package.json, separate from the repo root: it needs Playwright + Chromium, and it runs only on a GitHub Actions runner. Keeping it out of the root means a Netlify site build never downloads a browser.",
+  "scripts": {
+    "check": "node run.js",
+    "resolve-agoda": "node resolve-agoda-urls.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "playwright": "^1.49.0",
+    "resend": "^4.0.0"
+  }
+}

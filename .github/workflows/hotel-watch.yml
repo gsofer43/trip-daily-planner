@@ -1,0 +1,85 @@
+# Scheduled hotel-availability check.
+#
+# This runs here rather than as a Netlify Scheduled Function because both sources need a real
+# browser - Booking serves an AWS WAF JavaScript challenge to plain fetch, and Agoda ships an
+# empty JS shell - and Chromium does not fit a short-lived Lambda. A full Ubuntu runner has
+# Playwright support out of the box. Netlify Blobs is still the shared store; @netlify/blobs
+# talks to it from here using an explicit site id + token.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   NETLIFY_SITE_ID          35d11bcb-0c2e-445a-9e43-288eeda3af03
+#   NETLIFY_AUTH_TOKEN       a Netlify personal access token
+#   RESEND_API_KEY           from resend.com (round 4)
+#   ALERT_RECIPIENT_EMAILS   comma-separated; optional, the code has a fallback
+
+name: Hotel availability watch
+
+on:
+  schedule:
+    # Every 6 hours, UTC - 03:00 / 09:00 / 15:00 / 21:00 Israel time.
+    # GitHub runs scheduled workflows on a best-effort basis and can delay them under load,
+    # which is fine for a 6-hourly check. Note GitHub also disables scheduled workflows in a
+    # repository with no activity for 60 days.
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+# Never let a delayed run overlap the next one - two runs writing the same records could
+# double-send an alert.
+concurrency:
+  group: hotel-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: scripts/hotel-watch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: scripts/hotel-watch/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check availability
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_RECIPIENT_EMAILS: ${{ secrets.ALERT_RECIPIENT_EMAILS }}
+        run: node run.js
+
+  # Runs the two scrapers against pages whose answer is already known, so that a selector
+  # broken by a Booking/Agoda redesign surfaces as a failed check here rather than as a silent
+  # stream of `error` statuses on the site. Only on manual dispatch - it hits real pages.
+  selftest:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: scripts/hotel-watch
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: scripts/hotel-watch/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node selftest.js
