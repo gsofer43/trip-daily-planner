@@ -14,7 +14,7 @@
 // Optional:
 //   DRY_RUN=1           check and print, write nothing back to Blobs
 //   ALERT_DRY_RUN=1     print the alert email instead of sending it
-// See notify.js for RESEND_API_KEY / ALERT_RECIPIENT_EMAILS.
+// See notify.js for GMAIL_USER / GMAIL_APP_PASSWORD / ALERT_RECIPIENT_EMAILS.
 
 import { pathToFileURL } from 'node:url';
 import { getStore } from '@netlify/blobs';

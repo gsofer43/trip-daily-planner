@@ -77,12 +77,13 @@ const CASES = [
 let failures = 0;
 
 async function runCase(testCase, { failSend } = {}) {
-  // ALERT_DRY_RUN=1 makes notify.js report success without sending; removing it with no
-  // RESEND_API_KEY present makes it report failure. That is how the delivery-failure path
-  // below is exercised without a real Resend account.
+  // ALERT_DRY_RUN=1 makes notify.js report success without sending; removing it with no Gmail
+  // credentials present makes it report failure. That is how the delivery-failure path below is
+  // exercised without touching a real mailbox.
   if (failSend) {
     delete process.env.ALERT_DRY_RUN;
-    delete process.env.RESEND_API_KEY;
+    delete process.env.GMAIL_USER;
+    delete process.env.GMAIL_APP_PASSWORD;
   } else {
     process.env.ALERT_DRY_RUN = '1';
   }

@@ -1,22 +1,34 @@
-// Sends the "a hotel you are watching just became available" email, via Resend.
+// Sends the "a hotel you are watching just became available" email, from the trip owner's own
+// Gmail account over SMTP.
 //
-// RESEND_API_KEY lives only in a GitHub Actions secret - never in this repo - exactly like
-// GOOGLE_PLACES_API_KEY lives only in a Netlify environment variable. Sending is from
-// onboarding@resend.dev, which Resend allows without verifying a domain.
+// This started on Resend and had to move. Resend will happily send from onboarding@resend.dev
+// with no domain verification, but in that mode it only delivers to the ACCOUNT OWNER's own
+// address - a real send to the second recipient was rejected with "You can only send testing
+// emails to your own email address". Reaching both people would have meant buying and verifying
+// a domain. Gmail SMTP needs no domain, sends to anyone, and arrives from a familiar address so
+// it is less likely to be filtered as spam.
+//
+// Credentials live only in GitHub Actions secrets - never in this repo - exactly like
+// GOOGLE_PLACES_API_KEY lives only in a Netlify environment variable. GMAIL_APP_PASSWORD is a
+// Google "app password", not the account password; it only works with 2-Step Verification on and
+// can be revoked on its own without touching the account.
 //
 // Environment:
-//   RESEND_API_KEY          required to actually send
+//   GMAIL_USER              the sending Gmail address
+//   GMAIL_APP_PASSWORD      a Google app password (16 chars, spaces are ignored)
 //   ALERT_RECIPIENT_EMAILS  comma-separated; falls back to FALLBACK_RECIPIENTS below
 //   ALERT_DRY_RUN=1         print the email instead of sending it
 //
-// sendAvailabilityAlert() returns true only when the mail was really accepted by Resend. The
-// caller uses that to decide whether the transition has been consumed, so "false" must mean
-// "nobody was told" - never swallow a failure into a true here.
+// sendAvailabilityAlert() returns true only when the mail was really accepted by the SMTP
+// server. The caller uses that to decide whether the transition has been consumed, so "false"
+// must mean "nobody was told" - never swallow a failure into a true here.
 
 import { buildBookingUrl } from './check-booking.js';
 import { buildAgodaUrl } from './check-agoda.js';
 
-const FROM = 'Trip Planner <onboarding@resend.dev>';
+// Gmail rewrites the envelope sender to the authenticated account anyway, so this is only the
+// display name attached to GMAIL_USER.
+const FROM_NAME = 'מתכנן הטיול';
 const FALLBACK_RECIPIENTS = ['gil.sofer@gmail.com', 'ornitleib27@gmail.com'];
 
 const SOURCE_LABELS = { booking: 'Booking.com', agoda: 'Agoda' };
@@ -122,23 +134,40 @@ export async function sendAvailabilityAlert(watch, sources) {
     return true;
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
+  const user = process.env.GMAIL_USER;
+  // Google shows app passwords as "abcd efgh ijkl mnop"; pasting them with the spaces is the
+  // obvious thing to do and SMTP auth would just fail, so strip them here rather than making
+  // that a support question.
+  const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+
+  if (!user || !pass) {
     // Not a silent skip: returning false leaves the transition unconsumed, so the alert is
-    // retried on the next run once the key is configured, instead of being lost forever.
-    console.error('    RESEND_API_KEY is not set - alert NOT sent, will retry next run');
+    // retried on the next run once the credentials are configured, instead of being lost.
+    console.error('    GMAIL_USER / GMAIL_APP_PASSWORD are not set - alert NOT sent, will retry next run');
     return false;
   }
 
   try {
-    const { Resend } = await import('resend');
-    const resend = new Resend(apiKey);
-    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html, text });
-    if (error) {
-      console.error(`    Resend rejected the email: ${error.message || JSON.stringify(error)}`);
+    const nodemailer = (await import('nodemailer')).default;
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
+    });
+    const info = await transporter.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: to.join(', '),
+      subject,
+      html,
+      text
+    });
+    // Gmail accepts or rejects per recipient. Treating a partial delivery as success would mean
+    // one person silently never hears about it, so anything rejected is reported and the send
+    // counts as failed.
+    if (info.rejected && info.rejected.length > 0) {
+      console.error(`    some recipients were rejected: ${info.rejected.join(', ')}`);
       return false;
     }
-    console.log(`    alert sent to ${to.join(', ')} (id ${data && data.id})`);
+    console.log(`    alert sent to ${(info.accepted || to).join(', ')} (id ${info.messageId})`);
     return true;
   } catch (err) {
     console.error(`    sending the alert failed: ${err.message || err}`);

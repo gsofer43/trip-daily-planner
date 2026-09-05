@@ -103,7 +103,7 @@ Google's `rankPreference: 'POPULARITY'` (the only ranking option besides `DISTAN
 
 Local testing needs `netlify dev` (Netlify CLI) since a plain `index.html` double-click has no Netlify Function runtime behind it; `process.env.URL` differs locally (e.g. `http://localhost:8888`) and won't match the key's referrer restriction, so these features specifically only work once deployed to the real Netlify domain (or via `netlify dev` after adjusting the restriction to also allow the local URL, temporarily).
 
-### Hotel availability watch (Netlify Blobs + GitHub Actions + Resend)
+### Hotel availability watch (Netlify Blobs + GitHub Actions + Gmail SMTP)
 
 The hotels page lets you **watch** a hotel for a date range. Every 6 hours a scheduled job checks whether that hotel has a room, and the first time it flips from "not available" to "available" it emails an alert. Built to catch last-minute cancellations before the trip.
 
@@ -132,7 +132,11 @@ One record per hotel+date-range, keyed by an ASCII slug of the hotel name plus a
 1. When **every** source errors, `lastOverallStatus` is left exactly as it was. Writing `'error'` there would make the next successful check look like a fresh `unavailable → available` transition and fire a false alert. Per-source errors are still recorded and shown on the card. (Consequently `lastOverallStatus` is only ever `null`, `'available'` or `'unavailable'` — never `'error'`.)
 2. The email is sent **before** the transition is persisted, and `lastOverallStatus` only advances to `'available'` if the send actually succeeded. Persisting first would let a failed send silently consume the transition so the alert is never delivered. A failure leaves the record untouched and the next run retries — including when `RESEND_API_KEY` is not configured yet.
 
-The alert goes out via **Resend** from `onboarding@resend.dev` (no domain verification needed), linking to the *dated* Booking/Agoda pages so you land on the room list for those exact nights.
+The alert is sent **from the trip owner's own Gmail account over SMTP** (nodemailer), linking to the *dated* Booking/Agoda pages so you land on the room list for those exact nights.
+
+This was originally Resend and had to move — worth knowing before anyone tries to move it back. Resend does send from `onboarding@resend.dev` with no domain verification, but **in that mode it only delivers to the Resend account owner's own address**: a real send to the second recipient was rejected with "You can only send testing emails to your own email address". Reaching both people on Resend would have meant buying and verifying a domain. Gmail SMTP needs no domain, delivers to anyone, and arrives from a familiar address so it is less likely to be filtered as spam.
+
+`GMAIL_APP_PASSWORD` is a Google **app password** — it requires 2-Step Verification on the account, is not the account password, and can be revoked on its own. Spaces in the pasted value are stripped, since Google displays app passwords in groups of four. A partial delivery (Gmail accepting some recipients and rejecting others) is treated as a **failure**, so one person silently never hearing about it cannot be mistaken for success.
 
 **Environment variables** — none of these are ever in the repo:
 
@@ -140,7 +144,8 @@ The alert goes out via **Resend** from `onboarding@resend.dev` (no domain verifi
 | --- | --- | --- |
 | `NETLIFY_SITE_ID` | GitHub Actions secret | Blobs access from the runner (`35d11bcb-0c2e-445a-9e43-288eeda3af03`) |
 | `NETLIFY_AUTH_TOKEN` | GitHub Actions secret | Blobs access from the runner |
-| `RESEND_API_KEY` | GitHub Actions secret | Sending the alert |
+| `GMAIL_USER` | GitHub Actions secret | The Gmail address alerts are sent from |
+| `GMAIL_APP_PASSWORD` | GitHub Actions secret | A Google app password for that account — not the account password |
 | `ALERT_RECIPIENT_EMAILS` | GitHub Actions secret (optional) | Comma-separated; falls back in code to gil.sofer@gmail.com + ornitleib27@gmail.com |
 
 The `hotel-watch` function itself needs no variables — Netlify provides the Blobs context automatically.

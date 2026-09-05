@@ -9,7 +9,8 @@
 # Required repository secrets (Settings -> Secrets and variables -> Actions):
 #   NETLIFY_SITE_ID          35d11bcb-0c2e-445a-9e43-288eeda3af03
 #   NETLIFY_AUTH_TOKEN       a Netlify personal access token
-#   RESEND_API_KEY           from resend.com (round 4)
+#   GMAIL_USER               the Gmail address the alert is sent from
+#   GMAIL_APP_PASSWORD       a Google app password for that account (NOT the account password)
 #   ALERT_RECIPIENT_EMAILS   comma-separated; optional, the code has a fallback
 
 name: Hotel availability watch
@@ -57,7 +58,8 @@ jobs:
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           ALERT_RECIPIENT_EMAILS: ${{ secrets.ALERT_RECIPIENT_EMAILS }}
         run: node run.js
 
