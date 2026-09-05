@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Albania road trip, built as **plain HTML/CSS/JS with no server and no build tools**. It's `index.html` + `app.js` + `style.css`, deployed as-is to Netlify. The one exception is a single Netlify Function (see "Nearby places" below) that proxies Google Places lookups — everything else is still pure static frontend.
+A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Albania road trip, built as **plain HTML/CSS/JS with no server and no build tools**. It's `index.html` + `app.js` + `style.css`, deployed as-is to Netlify. The frontend is still pure static — no build, no bundler, no dependencies. There are two exceptions, both server-side: a Netlify Function that proxies Google Places lookups (see "Nearby places" below), and the hotel-availability watch (see "Hotel availability watch" below), which adds a second Netlify Function plus a scheduled scraper that runs on GitHub Actions.
 
 ## Working preferences
 
@@ -17,13 +17,20 @@ A single-page, Hebrew-language (RTL) trip itinerary planner for a Montenegro/Alb
 
 ## Running / developing
 
-There is no build, no package manager, no dev server, and no test suite. To work on it:
+**The frontend** has no build, no bundler, no dev server and no dependencies — that part is unchanged and should stay that way:
 
 - Open `index.html` directly in a browser (double-click, or drag into a browser window), or serve the folder with any static file server.
 - Changes to `app.js`/`style.css`/`index.html` take effect on browser refresh — no compile step.
-- Deployment is via Netlify (see `.netlify/state.json` for the linked site); pushing/deploying is otherwise not automated from this repo.
+- Deployment is via Netlify (see `.netlify/state.json` for the linked site); pushing to `main` is what updates the live site.
 
-There are no lint or test commands configured — verify changes by exercising the UI in a browser.
+**There are now two `package.json` files, both server-side only.** The repo used to have none, and the hotel-watch feature is what changed that:
+
+- `package.json` at the root — only `@netlify/blobs`, for the `hotel-watch` Netlify Function. Netlify installs this during a site build.
+- `scripts/hotel-watch/package.json` — `playwright`, `@netlify/blobs`, `resend`, used only by the scheduled GitHub Actions job. It is deliberately separate so a Netlify site build never downloads Chromium.
+
+Neither is loaded by the browser. Do not introduce a build step, a bundler or a frontend dependency.
+
+There is no linter. The only tests are the two in `scripts/hotel-watch/` (`selftest.js`, `alerttest.js`) which cover the scraping and alert logic — everything else is verified by exercising the UI in a browser. Anything touching a Netlify Function needs `netlify dev`, since opening `index.html` from disk has no function runtime behind it.
 
 ## Architecture
 
@@ -64,7 +71,13 @@ Four additional full-width sections (`#overviewMapSection`, `#wineriesSection`, 
 
 ### Wineries / hotels pages
 
-`WINERIES_BY_LOCATION` and `HOTELS_BY_LOCATION` are static reference arrays (not part of `state.data`/localStorage) rendered by `renderWineries()`/`renderHotels()` through the shared `renderPlaceGroups()` helper, which is generic over "group by location → cards with a maps link button" (used for both, and intended to be reused for future similar reference lists).
+`WINERIES_BY_LOCATION` and `HOTELS_BY_LOCATION` are static reference arrays (not part of `state.data`/localStorage).
+
+`renderWineries()` goes through the shared `renderPlaceGroups()` helper, which is generic over "group by location → cards with a maps link button" and is also used by the restaurants, shopping and both "nearby" pages.
+
+`renderHotels()` **does not** — hotels have their own render path (`buildHotelCard()`), because the watch button, the inline date form and the status badge are needed by hotels alone and would have meant growing a helper shared by five other callers with parameters only one of them uses. It builds the same DOM (`.place-card` > `.place-name` / `.place-card-actions` / `.place-hint`), so the cards still look identical. When that split happened, `secondaryUrl`/`secondaryLabel` lost their only caller and were removed from `renderPlaceGroups()`.
+
+Each `HOTELS_BY_LOCATION` group also carries `checkin`/`checkout` (`"DD/MM"`, same format as `day.date`) taken from the itinerary, used to prefill the watch form; and every hotel carries a manually verified `bookingUrl` (all 22) and, where one could be verified, an `agodaUrl` (13 of 22). See "Hotel availability watch" for why those are never guessed.
 
 ### Packing checklist page
 
@@ -89,6 +102,52 @@ The client side (`findNearbyPlaces(configKey)` in `app.js`, driven by `NEARBY_PL
 Google's `rankPreference: 'POPULARITY'` (the only ranking option besides `DISTANCE`) is not a rating/review-count filter, so `nearby-places.js` applies its own quality bar server-side after Google's response comes back, identically for every place type: only results with `rating >= 4.5` **and** `userRatingCount >= 150` (`MIN_RATING`/`MIN_REVIEWS`) survive, then the survivors are sorted by distance ascending — closest first — using a straight-line (haversine) distance from the user's coordinates to each place's `location`, computed server-side (`filterAndSortByQuality()`/`haversineMeters()`). Each surviving place carries its `distanceMeters`, which `app.js` (`formatDistanceHe()`) formats as e.g. `"200 מ'"` under 1000m or `"1.2 ק"מ"` at/above 1000m and shows on the card alongside the rating/review count. The initial search radius is 3km; if fewer than 3 places clear the bar (`MIN_QUALIFYING_RESULTS`), it retries once at 6km (`SEARCH_RADII_METERS`) rather than showing a near-empty list — but it never falls back to unfiltered results, so a location with genuinely nothing highly-rated nearby (even after the wider retry) correctly returns an empty list, which `app.js` renders as an explicit "nothing highly-rated found nearby" status message rather than an empty section.
 
 Local testing needs `netlify dev` (Netlify CLI) since a plain `index.html` double-click has no Netlify Function runtime behind it; `process.env.URL` differs locally (e.g. `http://localhost:8888`) and won't match the key's referrer restriction, so these features specifically only work once deployed to the real Netlify domain (or via `netlify dev` after adjusting the restriction to also allow the local URL, temporarily).
+
+### Hotel availability watch (Netlify Blobs + GitHub Actions + Resend)
+
+The hotels page lets you **watch** a hotel for a date range. Every 6 hours a scheduled job checks whether that hotel has a room, and the first time it flips from "not available" to "available" it emails an alert. Built to catch last-minute cancellations before the trip.
+
+**Where the data lives, and why not in `state.data`.** The watch list is the one piece of app data that is *not* in `localStorage`. The scheduled check runs on a server and has no access to the browser, so the watch list lives in a **Netlify Blobs** store called `hotel-watches`, and that store is the single source of truth. There is deliberately **no syncing** between Blobs and `state.data` — the browser only ever reads and writes through the function. Nothing here round-trips through the export/import backup JSON.
+
+One record per hotel+date-range, keyed by an ASCII slug of the hotel name plus a sha1 of `hotelName|location|checkin|checkout`. Shape: `{ hotelName, location, searchLocation, bookingUrl, agodaUrl, checkin, checkout, createdAt, sources: { booking, agoda }, lastOverallStatus, lastAlertSentAt }`, where each source is `{ status: 'available'|'unavailable'|'error'|null, checkedAt, note }`. `status: null` means "never checked yet" and renders as "טרם נבדק" — it is not an error.
+
+**`netlify/functions/hotel-watch.mjs`** serves `GET` (all records), `POST` (create) and `DELETE`/`POST ?action=remove`. It is a **v2 (ESM) function, unlike `nearby-places.js` which is CommonJS** — this is not a style choice: Netlify only wires the Blobs environment into the modern runtime, and a v1 `exports.handler` throws `MissingBlobsEnvironmentError`, including under `netlify dev`. Do not convert it back. It validates hotel URLs against a host allowlist before storing them, because the checker later points a real browser at whatever is saved. Re-watching the same hotel+dates returns the existing record rather than resetting it — a reset would wipe `lastOverallStatus` and make the next check look like a fresh transition, i.e. a false alert.
+
+**Frontend** — see the "Wineries / hotels pages" section above for why `renderHotels()` no longer uses `renderPlaceGroups()`. Cards are matched to watch records by hotel name + location rather than by the server's key (which embeds a sha1, so computing it in the browser would need an async `crypto.subtle` call on every render). The hotels section re-renders on every open, since statuses come from the server. If the function is unreachable the page degrades to one Hebrew status line with all cards still rendered, and no watch button is offered at all when the page is opened over `file://`.
+
+**The scheduled checker** lives in `scripts/hotel-watch/` and runs from `.github/workflows/hotel-watch.yml` (`cron: '0 */6 * * *'` UTC = 03:00/09:00/15:00/21:00 Israel, plus `workflow_dispatch`). **It runs on GitHub Actions, not as a Netlify Scheduled Function**, because both sources need a real browser and Chromium does not fit a 10-second Lambda. `@netlify/blobs` reaches the same store from outside Netlify using an explicit `siteID` + token. Caveats worth knowing: GitHub cron is UTC, scheduled runs can be delayed under load, and GitHub disables scheduled workflows in a repo with no activity for 60 days.
+
+**Why these two sources, and how each is read.** One module per source (`check-booking.js`, `check-agoda.js`) so a redesign on one site can be fixed without touching the other.
+
+- **Booking.com** — plain `fetch` is useless: every request, on any URL and with any headers, returns HTTP 202 with a ~4KB AWS WAF JavaScript challenge. A real browser clears it in a few seconds. `available` = `#hprt-table` with at least one `[data-block-id]` row; `unavailable` = `#no_availability_msg` with no room table. Covers all 22 hotels.
+- **Agoda** — serves an empty webpack shell to `fetch` (the hotel name appears zero times in the HTML). Only the **hotel detail page** works: free-text search bounces to the homepage, and `/search?city=` needs Agoda-internal numeric ids we do not have. Dates go in as `checkIn` + `los` (nights), not `checkIn`/`checkOut`. `available` = EUR price tokens in the room grid and no sold-out marker; `unavailable` = sold-out marker and no prices. The check waits for the page to settle first, because Agoda's loading state ("Just a moment / 0 results") is otherwise indistinguishable from a genuine zero result.
+- **Google Hotels was evaluated and rejected.** It renders only in a browser *and* **silently ignored the `checkin`/`checkout` URL parameters**, showing default dates instead — which would mean reporting availability for the wrong nights. That is exactly the false positive this feature must never produce. Do not add it back without solving the date problem.
+
+**URLs are verified, never guessed.** All 22 `bookingUrl`s were confirmed by opening each page and comparing its `"<name>, <city>"` title to the data — Booking slugs are not derivable from names (Casarogna Luxury Rooms lives at `/hotel/me/skala.html`). `agodaUrl` exists for only **13 of 22**; it was resolved by `scripts/hotel-watch/resolve-agoda-urls.js`, a one-off dev tool that guesses a slug, opens the page, and accepts the URL only if the rendered `<h1>` matches the hotel name. That guard matters: Agoda silently redirects near-miss slugs (Iberostar Waves Slavija actually lives at `slavija-budva-hotel-h9767289`). The 9 unverified hotels have **no** `agodaUrl` and report Agoda as `error` with an explanatory note — the checker never guesses a page, because checking the wrong property is worse than not checking.
+
+**The `error` rule.** Blocked, failed, timed out, no marker found, or *both* markers found at once → `status: 'error'`. Never `available`, never `unavailable`. A false "available" sends someone running to book a room that does not exist; a missed one just means waiting for the next check.
+
+**One alert per transition — the two rules that keep it honest.**
+
+1. When **every** source errors, `lastOverallStatus` is left exactly as it was. Writing `'error'` there would make the next successful check look like a fresh `unavailable → available` transition and fire a false alert. Per-source errors are still recorded and shown on the card. (Consequently `lastOverallStatus` is only ever `null`, `'available'` or `'unavailable'` — never `'error'`.)
+2. The email is sent **before** the transition is persisted, and `lastOverallStatus` only advances to `'available'` if the send actually succeeded. Persisting first would let a failed send silently consume the transition so the alert is never delivered. A failure leaves the record untouched and the next run retries — including when `RESEND_API_KEY` is not configured yet.
+
+The alert goes out via **Resend** from `onboarding@resend.dev` (no domain verification needed), linking to the *dated* Booking/Agoda pages so you land on the room list for those exact nights.
+
+**Environment variables** — none of these are ever in the repo:
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `NETLIFY_SITE_ID` | GitHub Actions secret | Blobs access from the runner (`35d11bcb-0c2e-445a-9e43-288eeda3af03`) |
+| `NETLIFY_AUTH_TOKEN` | GitHub Actions secret | Blobs access from the runner |
+| `RESEND_API_KEY` | GitHub Actions secret | Sending the alert |
+| `ALERT_RECIPIENT_EMAILS` | GitHub Actions secret (optional) | Comma-separated; falls back in code to gil.sofer@gmail.com + ornitleib27@gmail.com |
+
+The `hotel-watch` function itself needs no variables — Netlify provides the Blobs context automatically.
+
+**Testing.** `scripts/hotel-watch/selftest.js` runs both checkers against pages whose answer is already known, **in both directions** — a checker that always returned `error` would pass an availability-only test. `alerttest.js` exercises the alert state machine with no network, browser or Blobs, covering the two ways to get "exactly once" wrong. Both run in CI on manual dispatch. `DRY_RUN=1` checks without writing to Blobs; `ALERT_DRY_RUN=1` prints the email instead of sending it.
+
+**Known fragility.** This is scraping two sites we do not control, so selectors will eventually break. When they do, the failure mode is a steady stream of `error` statuses on the cards — not wrong data. Run `selftest.js` first; it will say which source broke and in which direction. The feature also has a deliberately short shelf life (it exists for one trip), so prefer a quick targeted fix over a redesign.
 
 ### Text conventions in the itinerary data
 
