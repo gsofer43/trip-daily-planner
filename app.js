@@ -957,10 +957,12 @@ function deleteDay(dayId) {
 }
 
 // ---------- Grouped place cards (shared by wineries / hotels / future pages) ----------
-// groups: [{ location, items: [{ name, note?, mapsUrl, secondaryUrl? }] }]
-// secondaryUrl + secondaryLabel הם אופציונליים (כרגע רק המלונות משתמשים בהם, לכפתור הזמנה
-// נוסף) — כשלא מוגדרים לפריט, הכרטיס נראה בדיוק כמו קודם (יקבים לא מושפעים).
-function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
+// groups: [{ location, items: [{ name, note?, mapsUrl }] }]
+// היה כאן גם secondaryUrl/secondaryLabel לכפתור "הזמנה בבוקינג" של המלונות. המלונות עברו
+// למסלול רינדור משלהם (renderHotels(), בגלל כפתור המעקב), ואיתם נעלם הצרכן היחיד של הפרמטרים
+// האלה — אז הם הוסרו כדי שה-helper המשותף לא יישא ענף מת. שאר הקוראים (יקבים, מסעדות, שופינג,
+// "בסביבתי") מעולם לא העבירו אותם ולא הושפעו.
+function renderPlaceGroups(containerEl, groups, buttonLabel) {
   containerEl.innerHTML = '';
   groups.forEach(group => {
     const groupEl = document.createElement('div');
@@ -991,7 +993,6 @@ function renderPlaceGroups(containerEl, groups, buttonLabel, secondaryLabel) {
         ${item.note ? `<p class="place-note">${escapeHtml(item.note)}</p>` : ''}
         <div class="place-card-actions">
           <a href="${escapeHtml(item.mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(buttonLabel)}</a>
-          ${item.secondaryUrl ? `<a href="${escapeHtml(item.secondaryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">${escapeHtml(secondaryLabel)}</a>` : ''}
         </div>
         <small class="place-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
       `;
@@ -1147,19 +1148,244 @@ const HOTELS_BY_LOCATION = [
   }
 ];
 
+// ---------- Hotel availability watch (frontend) ----------
+// המלונות הם הדף היחיד שלא עובר דרך renderPlaceGroups(): הוא משותף ליקבים, למסעדות, לשופינג
+// ולשתי תוצאות ה"בסביבתי", ואף אחד מהם לא צריך כפתור מעקב, טופס תאריכים או תג סטטוס. במקום
+// לנפח helper משותף בפרמטרים שרק קורא אחד מתוך שישה משתמש בהם, למלונות יש מסלול רינדור משלהם
+// שמייצר בדיוק את אותו DOM (.place-card / .place-name / .place-card-actions / .place-hint)
+// ומוסיף עליו את רכיבי המעקב.
+//
+// מקור האמת למעקב הוא Netlify Blobs דרך /.netlify/functions/hotel-watch — לא state.data ולא
+// localStorage. הבדיקה המתוזמנת רצה בשרת ואין לה גישה לדפדפן, ולכן אין כאן שום סנכרון דו-כיווני:
+// הדפדפן קורא וכותב דרך הפונקציה, וזהו.
+const HOTEL_WATCH_ENDPOINT = '/.netlify/functions/hotel-watch';
+
+// רשומות המעקב שנטענו מהשרת. מערך ריק = עדיין לא נטען / לא זמין, ואז הכרטיסים נראים בדיוק כמו
+// לפני הפיצ'ר. hotelWatchError מוצג כשורת סטטוס אחת בראש הדף במקום לשבור את הרשימה.
+let hotelWatches = [];
+let hotelWatchError = '';
+
+// הפיצ'ר תלוי ב-Netlify Function, שלא קיימת כשפותחים את index.html ישירות מהדיסק. במצב הזה
+// עדיף לא להראות כפתור מעקב שבטוח ייכשל מאשר להראות אותו ולתת למשתמש ללחוץ לחינם.
+function isHotelWatchSupported() {
+  return location.protocol === 'http:' || location.protocol === 'https:';
+}
+
+// "DD/MM" (הפורמט של day.date ושל checkin/checkout ב-HOTELS_BY_LOCATION) -> "YYYY-MM-DD",
+// לפי שנת הטיול מ-tripSubtitle. אותה המרה כמו getDayIsoDate(), רק שהקלט כאן הוא מחרוזת ולא יום.
+function hotelDateToIso(ddmm) {
+  const match = /^(\d{1,2})\/(\d{1,2})$/.exec((ddmm || '').trim());
+  if (!match) return '';
+  return `${getTripYear()}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+}
+
+// ההתאמה בין כרטיס לרשומת מעקב נעשית לפי שם המלון + המיקום, ולא לפי המפתח של השרת — המפתח שם
+// כולל hash של sha1, ולחשב אותו בדפדפן היה מחייב crypto.subtle אסינכרוני בכל רינדור. השרת
+// מחזיר את המפתח בכל רשומה, וזה מה שנשלח בחזרה במחיקה.
+function findHotelWatch(hotelName, location) {
+  return hotelWatches.find(w => w.hotelName === hotelName && w.location === location) || null;
+}
+
+const HOTEL_WATCH_STATUS_TEXT = {
+  available: 'פנוי ✅',
+  unavailable: 'לא פנוי',
+  error: 'שגיאה בבדיקה'
+};
+
+// מחזיר את זמן הבדיקה האחרון מבין המקורות. checkedAt נכתב רק ע"י הבודק המתוזמן, אז כל עוד הוא
+// לא רץ הערך null והכרטיס יציג "טרם נבדק" — ולא זמן שקרי.
+function lastHotelCheckText(watch) {
+  const times = Object.values(watch.sources || {})
+    .map(s => s && s.checkedAt)
+    .filter(Boolean)
+    .map(t => new Date(t).getTime())
+    .filter(t => !Number.isNaN(t));
+  if (times.length === 0) return '';
+  return `נבדק: ${new Date(Math.max(...times)).toLocaleString('he-IL')}`;
+}
+
+async function loadHotelWatches() {
+  if (!isHotelWatchSupported()) return;
+  try {
+    const res = await fetch(HOTEL_WATCH_ENDPOINT);
+    // קוראים את הגוף לפני בדיקת res.ok כדי להציג את הודעת השגיאה בעברית שהפונקציה מחזירה,
+    // כמו ב-findNearbyPlaces().
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'שגיאה בטעינת רשימת המעקב');
+    hotelWatches = Array.isArray(data.watches) ? data.watches : [];
+    hotelWatchError = '';
+  } catch (err) {
+    hotelWatches = [];
+    hotelWatchError = 'לא הצלחנו לטעון את מצב המעקב אחרי המלונות.';
+  }
+  renderHotels();
+}
+
+async function submitHotelWatch(hotel, group, checkin, checkout, formEl) {
+  const errorEl = formEl.querySelector('.hotel-watch-error');
+  const confirmBtn = formEl.querySelector('.hotel-watch-confirm');
+
+  if (!checkin || !checkout) {
+    errorEl.textContent = 'צריך לבחור גם תאריך הגעה וגם תאריך עזיבה';
+    return;
+  }
+  if (checkout <= checkin) {
+    errorEl.textContent = 'תאריך העזיבה חייב להיות אחרי תאריך ההגעה';
+    return;
+  }
+
+  errorEl.textContent = '';
+  confirmBtn.disabled = true;
+  try {
+    const res = await fetch(HOTEL_WATCH_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hotelName: hotel.name,
+        location: group.location,
+        searchLocation: group.searchLocation,
+        bookingUrl: hotel.bookingUrl,
+        checkin,
+        checkout
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'יצירת המעקב נכשלה');
+    await loadHotelWatches();
+  } catch (err) {
+    errorEl.textContent = err.message || 'יצירת המעקב נכשלה';
+    confirmBtn.disabled = false;
+  }
+}
+
+async function removeHotelWatch(key, btn) {
+  btn.disabled = true;
+  try {
+    const res = await fetch(HOTEL_WATCH_ENDPOINT, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'ביטול המעקב נכשל');
+    await loadHotelWatches();
+  } catch (err) {
+    hotelWatchError = 'ביטול המעקב נכשל.';
+    btn.disabled = false;
+    renderHotels();
+  }
+}
+
+function buildHotelCard(hotel, group) {
+  const watch = findHotelWatch(hotel.name, group.location);
+  const canWatch = isHotelWatchSupported() && !!hotel.bookingUrl;
+  const mapsUrl = buildHotelMapsSearchUrl(hotel.name, group.searchLocation);
+  const bookingUrl = hotel.bookingUrl || buildBookingSearchUrl(hotel.name, group.searchLocation);
+
+  const card = document.createElement('div');
+  card.className = 'place-card';
+
+  const statusKey = watch ? watch.lastOverallStatus : null;
+  const statusText = watch
+    ? (HOTEL_WATCH_STATUS_TEXT[statusKey] || 'טרם נבדק')
+    : '';
+  const checkedText = watch ? lastHotelCheckText(watch) : '';
+
+  card.innerHTML = `
+    <p class="place-name">${escapeHtml(hotel.name)}</p>
+    ${watch ? '<span class="hotel-watch-badge">עוקב 👁️</span>' : ''}
+    ${watch ? `
+      <p class="hotel-watch-status hotel-watch-status-${escapeHtml(statusKey || 'pending')}">
+        ${escapeHtml(statusText)}
+      </p>
+      <p class="hotel-watch-dates">${escapeHtml(watch.checkin)} — ${escapeHtml(watch.checkout)}${checkedText ? ` · ${escapeHtml(checkedText)}` : ''}</p>
+    ` : ''}
+    <div class="place-card-actions">
+      <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">חיפוש בגוגל מפות 🗺️</a>
+      <a href="${escapeHtml(bookingUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary place-maps-btn">הזמנה בבוקינג 🛏️</a>
+      ${canWatch
+        ? (watch
+          ? '<button type="button" class="btn hotel-watch-remove">בטל מעקב</button>'
+          : '<button type="button" class="btn hotel-watch-open">עקוב 👁️</button>')
+        : ''}
+    </div>
+    ${canWatch && !watch ? `
+      <div class="hotel-watch-form hidden">
+        <label class="hotel-watch-field">
+          <span>צ'ק-אין</span>
+          <input type="date" class="hotel-watch-checkin" value="${escapeHtml(hotelDateToIso(group.checkin))}">
+        </label>
+        <label class="hotel-watch-field">
+          <span>צ'ק-אאוט</span>
+          <input type="date" class="hotel-watch-checkout" value="${escapeHtml(hotelDateToIso(group.checkout))}">
+        </label>
+        <div class="hotel-watch-form-actions">
+          <button type="button" class="btn btn-primary hotel-watch-confirm">אישור</button>
+          <button type="button" class="btn hotel-watch-cancel">ביטול</button>
+        </div>
+        <p class="hotel-watch-error"></p>
+      </div>
+    ` : ''}
+    <small class="place-hint">תמונות אמיתיות של המקום זמינות בגוגל מפות</small>
+  `;
+
+  const openBtn = card.querySelector('.hotel-watch-open');
+  const formEl = card.querySelector('.hotel-watch-form');
+  if (openBtn && formEl) {
+    openBtn.addEventListener('click', () => {
+      formEl.classList.toggle('hidden');
+    });
+    card.querySelector('.hotel-watch-cancel').addEventListener('click', () => {
+      formEl.classList.add('hidden');
+    });
+    card.querySelector('.hotel-watch-confirm').addEventListener('click', () => {
+      submitHotelWatch(
+        hotel,
+        group,
+        card.querySelector('.hotel-watch-checkin').value,
+        card.querySelector('.hotel-watch-checkout').value,
+        formEl
+      );
+    });
+  }
+
+  const removeBtn = card.querySelector('.hotel-watch-remove');
+  if (removeBtn && watch) {
+    removeBtn.addEventListener('click', () => removeHotelWatch(watch.key, removeBtn));
+  }
+
+  return card;
+}
+
 function renderHotels() {
-  const groups = HOTELS_BY_LOCATION.map(g => ({
-    location: g.location,
-    items: g.hotels.map(entry => {
+  hotelsListEl.innerHTML = '';
+
+  if (hotelWatchError) {
+    const statusEl = document.createElement('p');
+    statusEl.className = 'weather-status';
+    statusEl.textContent = hotelWatchError;
+    hotelsListEl.appendChild(statusEl);
+  }
+
+  HOTELS_BY_LOCATION.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'place-group';
+
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'place-group-title';
+    titleEl.textContent = group.location;
+    groupEl.appendChild(titleEl);
+
+    const cardsEl = document.createElement('div');
+    cardsEl.className = 'place-cards';
+    group.hotels.forEach(entry => {
       const hotel = typeof entry === 'string' ? { name: entry } : entry;
-      return {
-        name: hotel.name,
-        mapsUrl: buildHotelMapsSearchUrl(hotel.name, g.searchLocation),
-        secondaryUrl: hotel.bookingUrl || buildBookingSearchUrl(hotel.name, g.searchLocation)
-      };
-    })
-  }));
-  renderPlaceGroups(hotelsListEl, groups, 'חיפוש בגוגל מפות 🗺️', 'הזמנה בבוקינג 🛏️');
+      cardsEl.appendChild(buildHotelCard(hotel, group));
+    });
+
+    groupEl.appendChild(cardsEl);
+    hotelsListEl.appendChild(groupEl);
+  });
 }
 
 // ---------- Recommended restaurants (static reference page) ----------
@@ -2161,7 +2387,14 @@ closeOverviewBtn.addEventListener('click', closeSpecialSections);
 wineriesBtn.addEventListener('click', () => openSpecialSection(wineriesSection));
 closeWineriesBtn.addEventListener('click', closeSpecialSections);
 
-hotelsBtn.addEventListener('click', () => openSpecialSection(hotelsSection));
+// בניגוד לשאר הסקשנים, המלונות מרונדרים מחדש בכל פתיחה: תג הסטטוס וזמן הבדיקה האחרונה מגיעים
+// מהשרת, ורינדור יחיד ב-init היה מקפיא אותם על מה שהיה בטעינת הדף. loadHotelWatches() קורא
+// ל-renderHotels() שוב כשהתשובה חוזרת.
+hotelsBtn.addEventListener('click', () => {
+  openSpecialSection(hotelsSection);
+  renderHotels();
+  loadHotelWatches();
+});
 closeHotelsBtn.addEventListener('click', closeSpecialSections);
 
 restaurantsBtn.addEventListener('click', () => openSpecialSection(restaurantsSection));

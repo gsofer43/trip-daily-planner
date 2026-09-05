@@ -292,6 +292,83 @@ a.btn {
   font-size: 0.72rem;
 }
 
+/* מעקב זמינות מלונות — נוסף על אותו .place-card של שאר הדפים.
+   הכל נשען רק על משתני ה-CSS שמוגדרים ב-:root ונדרסים בבלוק prefers-color-scheme: dark
+   למעלה, ולכן dark mode עובד כאן בלי אף כלל ייעודי. */
+.hotel-watch-badge {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--bg);
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+
+.hotel-watch-status {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hotel-watch-status-available { color: var(--primary); }
+.hotel-watch-status-error { color: var(--danger); }
+
+.hotel-watch-dates {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.hotel-watch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+/* כמו .place-card.hidden — .hotel-watch-form מגדיר display: flex משלו, אז .hidden הכללי
+   (display: none) לא מנצח בלי selector ספציפי יותר. */
+.hotel-watch-form.hidden { display: none; }
+
+.hotel-watch-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.hotel-watch-field input[type="date"] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.3rem 0.45rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.hotel-watch-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hotel-watch-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.hotel-watch-error:empty { display: none; }
+
 .place-subgroup-title {
   font-size: 0.92rem;
   font-weight: 600;
