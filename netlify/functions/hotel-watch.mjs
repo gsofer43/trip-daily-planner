@@ -175,7 +175,20 @@ export default async (req) => {
       // looks like a fresh "became available" transition — a false alert.
       const existing = await store.get(key, { type: 'json' });
 
-      const watch = existing || {
+      if (existing) {
+        // One exception to "never touch an existing record": backfill a missing agodaUrl.
+        // Records created before a hotel had a verified Agoda page would otherwise keep
+        // agodaUrl: null forever and report Agoda as error for good, since re-watching returns
+        // the record untouched. Only fills a null - never overwrites an existing URL, and never
+        // touches sources / lastOverallStatus / lastAlertSentAt, so the alert state is safe.
+        if (!existing.agodaUrl && payload.agodaUrl) {
+          existing.agodaUrl = payload.agodaUrl;
+          await store.setJSON(key, existing);
+        }
+        return jsonResponse(200, { watch: { ...existing, key } });
+      }
+
+      const watch = {
         hotelName,
         location,
         searchLocation: cleanText(payload.searchLocation),
