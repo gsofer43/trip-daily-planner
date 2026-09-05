@@ -5,19 +5,23 @@
 // JS shell), and Chromium does not belong in a 10-second Lambda. Netlify Blobs stays the shared
 // store either way - @netlify/blobs works from outside Netlify given an explicit siteID + token.
 //
-// Reads every watch record, checks each source, writes the results back, and (round 4) sends
-// the one-off alert when a hotel becomes available.
+// Reads every watch record, checks each source, sends the one-off alert on a transition into
+// availability, and writes the results back.
 //
 // Required environment:
 //   NETLIFY_SITE_ID     the Netlify project id
 //   NETLIFY_AUTH_TOKEN  a Netlify personal access token
 // Optional:
-//   DRY_RUN=1           check and print, write nothing back
+//   DRY_RUN=1           check and print, write nothing back to Blobs
+//   ALERT_DRY_RUN=1     print the alert email instead of sending it
+// See notify.js for RESEND_API_KEY / ALERT_RECIPIENT_EMAILS.
 
+import { pathToFileURL } from 'node:url';
 import { getStore } from '@netlify/blobs';
 import { chromium } from 'playwright';
 import { checkBooking } from './check-booking.js';
 import { checkAgoda } from './check-agoda.js';
+import { sendAvailabilityAlert } from './notify.js';
 
 const STORE_NAME = 'hotel-watches';
 
@@ -41,9 +45,9 @@ function requireEnv(name) {
 }
 
 // A source that returns `available` wins. Otherwise a confident `unavailable` counts. If every
-// source errored we return null, meaning "we learned nothing this run" - see the caller, which
-// deliberately leaves lastOverallStatus untouched in that case.
-function computeOverallStatus(sources) {
+// source errored we return null, meaning "we learned nothing this run" - see applyResult(),
+// which then leaves lastOverallStatus untouched.
+export function computeOverallStatus(sources) {
   const statuses = Object.values(sources).map(s => s && s.status);
   if (statuses.includes('available')) return 'available';
   if (statuses.includes('unavailable')) return 'unavailable';
@@ -68,6 +72,48 @@ async function checkWatch(context, watch) {
   return results;
 }
 
+// Decides what the new record looks like, including whether to alert.
+//
+// Two rules here are what keep "exactly one email per transition" honest:
+//
+// 1. When every source errored (overall === null) lastOverallStatus is left exactly as it was.
+//    Writing 'error' would make the next successful check look like a fresh
+//    unavailable -> available transition and fire a false alert.
+//
+// 2. The email is sent BEFORE the transition is persisted, and lastOverallStatus only advances
+//    to 'available' if the send actually succeeded. Persisting first would mean a failed send
+//    silently consumes the transition and the alert is never delivered at all. This way a
+//    failure just leaves the record as it was, and the next run tries again.
+export async function applyResult(watch, sources) {
+  const previous = watch.lastOverallStatus;
+  const overall = computeOverallStatus(sources);
+  const updated = { ...watch, sources };
+
+  if (overall === null) {
+    console.log(`    overall  (no conclusive result - keeping "${previous ?? 'never checked'}")`);
+    return { updated, alerted: false };
+  }
+
+  const isTransition = overall === 'available' && previous !== 'available';
+  console.log(`    overall  ${overall}${previous !== overall ? `  (was ${previous ?? 'never checked'})` : ''}`);
+
+  if (!isTransition) {
+    updated.lastOverallStatus = overall;
+    return { updated, alerted: false };
+  }
+
+  console.log('    became available - sending alert');
+  const sent = await sendAvailabilityAlert(watch, sources);
+  if (!sent) {
+    console.error('    alert not delivered - leaving status unchanged so the next run retries');
+    return { updated, alerted: false };
+  }
+
+  updated.lastOverallStatus = 'available';
+  updated.lastAlertSentAt = new Date().toISOString();
+  return { updated, alerted: true };
+}
+
 async function main() {
   const siteID = requireEnv('NETLIFY_SITE_ID');
   const token = requireEnv('NETLIFY_AUTH_TOKEN');
@@ -81,41 +127,27 @@ async function main() {
     return;
   }
 
-  console.log(`Checking ${blobs.length} watch(es)${dryRun ? ' [DRY RUN]' : ''}\n`);
+  console.log(`Checking ${blobs.length} watch(es)${dryRun ? ' [DRY RUN - no writes]' : ''}\n`);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ userAgent: USER_AGENT, locale: 'en-US' });
 
-  const becameAvailable = [];
+  let alerts = 0;
+  let errors = 0;
 
   try {
     for (const blob of blobs) {
       const watch = await store.get(blob.key, { type: 'json' });
       if (!watch || typeof watch !== 'object') {
         console.log(`!!  ${blob.key}: unreadable record, skipped`);
+        errors++;
         continue;
       }
 
       console.log(`--  ${watch.hotelName} (${watch.checkin} -> ${watch.checkout})`);
       const sources = await checkWatch(context, watch);
-      const overall = computeOverallStatus(sources);
-
-      const previous = watch.lastOverallStatus;
-      const updated = { ...watch, sources };
-
-      if (overall === null) {
-        // Every source errored. Leave lastOverallStatus exactly as it was: if we wrote 'error'
-        // here, the next successful check would look like a fresh "became available"
-        // transition and fire a false alert. The per-source errors are still recorded, so the
-        // site shows what happened.
-        console.log(`    overall  (no conclusive result - keeping "${previous ?? 'טרם נבדק'}")`);
-      } else {
-        updated.lastOverallStatus = overall;
-        console.log(`    overall  ${overall}${previous !== overall ? `  (was ${previous ?? 'טרם נבדק'})` : ''}`);
-        if (overall === 'available' && previous !== 'available') {
-          becameAvailable.push({ key: blob.key, watch: updated, sources });
-        }
-      }
+      const { updated, alerted } = await applyResult(watch, sources);
+      if (alerted) alerts++;
 
       if (!dryRun) await store.setJSON(blob.key, updated);
     }
@@ -123,15 +155,14 @@ async function main() {
     await browser.close();
   }
 
-  console.log(`\nDone. ${becameAvailable.length} hotel(s) newly available.`);
-
-  if (becameAvailable.length > 0) {
-    const { sendAvailabilityAlerts } = await import('./notify.js');
-    await sendAvailabilityAlerts(becameAvailable, { store, dryRun });
-  }
+  console.log(`\nDone. ${alerts} alert(s) sent, ${errors} record(s) skipped.`);
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run when invoked directly (node run.js), so the state machine above can be imported
+// and exercised by alerttest.js without kicking off a real run.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}

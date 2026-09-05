@@ -81,5 +81,12 @@ jobs:
           cache: npm
           cache-dependency-path: scripts/hotel-watch/package-lock.json
       - run: npm ci
+
+      # No network or browser needed - pure state-machine check that one transition produces
+      # exactly one alert, and that an errored run never fabricates a new transition.
+      - name: Alert logic
+        run: node alerttest.js
+
       - run: npx playwright install --with-deps chromium
-      - run: node selftest.js
+      - name: Live source checks
+        run: node selftest.js
