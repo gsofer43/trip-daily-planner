@@ -1,0 +1,9 @@
+{
+  "name": "trip-daily-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dependencies for the Netlify Functions only. The frontend (index.html / app.js / style.css) has no build step, no bundler and no dependencies - it is still loaded directly by the browser. The hotel-availability checker has its own separate package.json under scripts/hotel-watch/ so that Netlify never installs Playwright/Chromium during a site build.",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

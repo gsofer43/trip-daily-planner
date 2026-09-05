@@ -1059,37 +1059,73 @@ function buildBookingSearchUrl(hotelName, searchLocation) {
 }
 
 // searchLocation מגדיר מחרוזת ניקוי לחיפוש בגוגל מפות (בלי תוספות עברית), נפרד מ-location שמוצג למשתמש.
-// פריט ב-hotels יכול להיות מחרוזת (שם בלבד — כפתור בוקינג מפנה לחיפוש) או אובייקט
-// { name, bookingUrl } כשיש קישור ישיר לעמוד המלון ב-Booking (עדיף על עמוד תוצאות חיפוש).
+// לכל מלון יש bookingUrl — עמוד המלון ב-Booking. כל 22 הכתובות אומתו ידנית בדפדפן: נטענו,
+// והכותרת שלהן ("<שם>, <עיר>") הושוותה לשם ולמיקום כאן. אל תנחשו slug — הוא לא תמיד נגזר
+// מהשם (למשל Casarogna Luxury Rooms יושב על /hotel/me/skala.html), ובלי עמוד נכון מעקב
+// הזמינות יבדוק מלון אחר לגמרי. אותו כלל כמו VERIFIED_STATION_PLACE_IDS.
+// checkin/checkout הם ברירת המחדל בטופס המעקב, בפורמט "DD/MM" של day.date — נגזרו מהמסלול
+// עצמו (יום ההגעה ליעד ויום העזיבה שלו), ומומרים לשנה מלאה דרך getTripYear(). המשתמש יכול
+// לערוך אותם לפני אישור.
 const HOTELS_BY_LOCATION = [
   {
     location: 'Rijeka Crnojevića',
     searchLocation: 'Rijeka Crnojevića, Montenegro',
-    hotels: ['Casarogna Luxury Rooms', 'Rooms Dujeva Drago-Resort', 'Village house - Novak Rijecani']
+    checkin: '11/09',
+    checkout: '12/09',
+    hotels: [
+      { name: 'Casarogna Luxury Rooms', bookingUrl: 'https://www.booking.com/hotel/me/skala.html' },
+      { name: 'Rooms Dujeva Drago-Resort', bookingUrl: 'https://www.booking.com/hotel/me/rooms-dujeva.html' },
+      { name: 'Village house - Novak Rijecani', bookingUrl: 'https://www.booking.com/hotel/me/rooms-novak-rijecani.html' }
+    ]
   },
   {
     location: 'ת\'ת\' (Theth)',
     searchLocation: 'Theth, Albania',
-    hotels: ['Molla Guest House', 'Guesthouse Gjin Thana', 'Thethi Paradise Hotel & Restaurant', 'Vidis Chalet Boutique Hotel']
+    checkin: '12/09',
+    checkout: '15/09',
+    hotels: [
+      { name: 'Molla Guest House', bookingUrl: 'https://www.booking.com/hotel/al/molla-guest-house.html' },
+      { name: 'Guesthouse Gjin Thana', bookingUrl: 'https://www.booking.com/hotel/al/guesthouse-quot-gjin-thana-quot.html' },
+      { name: 'Thethi Paradise Hotel & Restaurant', bookingUrl: 'https://www.booking.com/hotel/al/thethi-paradise.html' },
+      { name: 'Vidis Chalet Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vidis-chalet.html' }
+    ]
   },
   {
     location: 'שקודר (Shkodër)',
     searchLocation: 'Shkodër, Albania',
-    hotels: ['TRIBUTE Hotel', 'The Red Bricks Hotel', 'The Roots Boutique Hotel']
+    checkin: '15/09',
+    checkout: '17/09',
+    hotels: [
+      { name: 'TRIBUTE Hotel', bookingUrl: 'https://www.booking.com/hotel/al/tribute.html' },
+      { name: 'The Red Bricks Hotel', bookingUrl: 'https://www.booking.com/hotel/al/the-red-bricks.html' },
+      { name: 'The Roots Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/boutique-the-roots.html' }
+    ]
   },
   {
     location: 'בראט (Berat)',
     searchLocation: 'Berat, Albania',
-    hotels: ['Vista Boutique Hotel', 'Hotel Plaza Berat']
+    checkin: '17/09',
+    checkout: '19/09',
+    hotels: [
+      { name: 'Vista Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vista-boutique.html' },
+      { name: 'Hotel Plaza Berat', bookingUrl: 'https://www.booking.com/hotel/al/plaza-berat.html' }
+    ]
   },
   {
     location: 'סרנדה (Sarandë)',
     searchLocation: 'Sarandë, Albania',
-    hotels: ['Alyacht Premium Hotel', 'Demi Hotel']
+    checkin: '19/09',
+    checkout: '21/09',
+    hotels: [
+      { name: 'Alyacht Premium Hotel', bookingUrl: 'https://www.booking.com/hotel/al/yacht-premium-sarande.html' },
+      { name: 'Demi Hotel', bookingUrl: 'https://www.booking.com/hotel/al/demi.html' }
+    ]
   },
   {
     location: 'טירנה (Tirana)',
     searchLocation: 'Tirana, Albania',
+    checkin: '23/09',
+    checkout: '25/09',
     hotels: [
       { name: 'Vila Koja Boutique Hotel', bookingUrl: 'https://www.booking.com/hotel/al/vila-koja-boutique.html' },
       { name: 'Rogner Hotel Tirana', bookingUrl: 'https://www.booking.com/hotel/al/rogner-europark.html' },
@@ -1099,6 +1135,8 @@ const HOTELS_BY_LOCATION = [
   {
     location: 'בודווה (Budva)',
     searchLocation: 'Budva, Montenegro',
+    checkin: '25/09',
+    checkout: '27/09',
     hotels: [
       { name: 'Avala Resort & Villas', bookingUrl: 'https://www.booking.com/hotel/me/avala-resort-villas.html' },
       { name: 'Infinity Hotel & More', bookingUrl: 'https://www.booking.com/hotel/me/infinity-amp-more.html' },
