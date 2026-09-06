@@ -49,6 +49,17 @@ const CASES = [
     }
   },
   {
+    label: 'Agoda / Molla Theth 12-15 Sep (sold out - the false-positive case)',
+    source: 'agoda',
+    expect: 'unavailable',
+    watch: {
+      hotelName: 'Molla Guest House',
+      agodaUrl: 'https://www.agoda.com/en-gb/molla-guest-house/hotel/theth-al.html',
+      checkin: '2026-09-12',
+      checkout: '2026-09-15'
+    }
+  },
+  {
     label: 'Agoda / hotel with no verified Agoda page',
     source: 'agoda',
     expect: 'error',

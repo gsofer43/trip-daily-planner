@@ -1067,9 +1067,10 @@ function buildBookingSearchUrl(hotelName, searchLocation) {
 // checkin/checkout הם ברירת המחדל בטופס המעקב, בפורמט "DD/MM" של day.date — נגזרו מהמסלול
 // עצמו (יום ההגעה ליעד ויום העזיבה שלו), ומומרים לשנה מלאה דרך getTripYear(). המשתמש יכול
 // לערוך אותם לפני אישור.
-// agodaUrl קיים רק ב-13 מתוך 22 המלונות. הוא אותר ע"י scripts/hotel-watch/resolve-agoda-urls.js,
+// agodaUrl קיים ב-15 מתוך 22 המלונות. הוא אותר ע"י scripts/hotel-watch/resolve-agoda-urls.js,
 // שמנחש slug מהשם, פותח את הדף, ומקבל אותו רק אם ה-h1 שאגודה מרנדרת תואם לשם המלון. ל-9 שלא
-// אומתו (בעיקר אכסניות קטנות ברייקה, בת׳ת׳ ובסרנדה) פשוט אין agodaUrl — והבודק מדווח עליהם
+// אומתו (רייקה, סרנדה, Merit Starlit, ו-Guesthouse Gjin Thana שכל כתובות ה-Agoda שלו מחזירות
+// 404 — כנראה הוסר משם) פשוט אין agodaUrl — והבודק מדווח עליהם
 // Agoda = error עם הסבר, במקום לנחש עמוד ולבדוק מלון אחר. אל תוסיפו כאן URL בלי לאמת אותו.
 const HOTELS_BY_LOCATION = [
   {
@@ -1109,11 +1110,13 @@ const HOTELS_BY_LOCATION = [
       },
       {
         name: 'Thethi Paradise Hotel & Restaurant',
-        bookingUrl: 'https://www.booking.com/hotel/al/thethi-paradise.html'
+        bookingUrl: 'https://www.booking.com/hotel/al/thethi-paradise.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/thethi-paradise/hotel/theth-al.html'
       },
       {
         name: 'Vidis Chalet Boutique Hotel',
-        bookingUrl: 'https://www.booking.com/hotel/al/vidis-chalet.html'
+        bookingUrl: 'https://www.booking.com/hotel/al/vidis-chalet.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/vidis-chalet-hotel/hotel/theth-al.html'
       }
     ]
   },

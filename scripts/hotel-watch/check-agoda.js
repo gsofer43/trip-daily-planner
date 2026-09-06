@@ -21,8 +21,16 @@
 // so the check waits for a settled state and reports error rather than reading that as "no
 // rooms".
 
-const SOLD_OUT_MARKER = '[data-selenium*="soldout" i], [class*="SoldOut"]';
-const ROOM_GRID = '[data-selenium*="room" i], [id*="roomGrid"], [data-element-name*="room" i]';
+// Sold-out is detected by TEXT, not by a selector. The obvious-looking
+// [data-selenium*="soldout"] / [class*="SoldOut"] matches nothing on a real sold-out page -
+// verified against three of them - so relying on it meant this module could never once return
+// `unavailable`, and instead sat waiting for a price until it timed out.
+const SOLD_OUT_TEXT = /sold out|we're sold out|fully booked/i;
+
+// The bookable-rooms container. Present on a page that has rooms, absent on a sold-out one, so
+// it is the second half of the "available" test.
+const ROOM_GRID = '#roomGrid, [data-selenium="roomGrid"], [id*="roomGrid"]';
+
 const PRICE_PATTERN = /€\s?[0-9][0-9,.]*/;
 
 const NAVIGATION_TIMEOUT_MS = 45000;
@@ -61,39 +69,40 @@ export async function checkAgoda(page, watch) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS });
 
-    // Wait until the page settles into one of the two states. Without this the loading
-    // skeleton reads as "no prices and no sold-out marker", i.e. a spurious error at best.
+    // Wait until the page settles into one of the two states. Without this the loading skeleton
+    // reads as "no prices and not sold out", i.e. a spurious error at best.
     await page.waitForFunction(
       selectors => {
-        const soldOut = !!document.querySelector(selectors.soldOut);
-        const hasPrice = new RegExp(selectors.price).test(document.body.innerText || '');
-        return soldOut || hasPrice;
+        const text = document.body.innerText || '';
+        if (new RegExp(selectors.soldOut, 'i').test(text)) return true;
+        return !!document.querySelector(selectors.rooms) && new RegExp(selectors.price).test(text);
       },
-      { soldOut: SOLD_OUT_MARKER, price: PRICE_PATTERN.source },
+      { soldOut: SOLD_OUT_TEXT.source, rooms: ROOM_GRID, price: PRICE_PATTERN.source },
       { timeout: SETTLE_TIMEOUT_MS }
     );
 
     const seen = await page.evaluate(
       selectors => {
         const text = document.body.innerText || '';
-        const prices = text.match(new RegExp(selectors.price, 'g')) || [];
         return {
-          soldOut: !!document.querySelector(selectors.soldOut),
-          priceCount: prices.length,
-          roomNodes: document.querySelectorAll(selectors.rooms).length
+          soldOut: new RegExp(selectors.soldOut, 'i').test(text),
+          priceCount: (text.match(new RegExp(selectors.price, 'g')) || []).length,
+          hasRoomGrid: !!document.querySelector(selectors.rooms)
         };
       },
-      { soldOut: SOLD_OUT_MARKER, rooms: ROOM_GRID, price: PRICE_PATTERN.source }
+      { soldOut: SOLD_OUT_TEXT.source, rooms: ROOM_GRID, price: PRICE_PATTERN.source }
     );
 
-    if (seen.soldOut && seen.priceCount > 0) {
-      return { status: 'error', note: 'גם "אזל" וגם מחירים בדף - תוצאה לא חד-משמעית' };
-    }
-    if (seen.priceCount > 0 && seen.roomNodes > 0) {
-      return { status: 'available', note: `${seen.priceCount} מחירים בדף החדרים` };
-    }
+    // Sold-out wins outright, and is checked FIRST. Agoda keeps rendering other things with
+    // prices on a sold-out page (a "similar properties" carousel, for one), so a price appearing
+    // somewhere in the body is not evidence that THIS hotel has a room. Reading it as one is how
+    // a false "available" - and a false alert telling someone to go book a room that isn't
+    // there - would get sent.
     if (seen.soldOut) {
       return { status: 'unavailable', note: '' };
+    }
+    if (seen.hasRoomGrid && seen.priceCount > 0) {
+      return { status: 'available', note: `${seen.priceCount} מחירים בדף החדרים` };
     }
     return { status: 'error', note: 'הדף לא הגיע למצב חד-משמעי' };
   } catch (err) {
