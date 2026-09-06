@@ -37,7 +37,8 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding-bottom: 3rem;
+  /* + safe-area: keeps content clear of the home indicator when installed as an app */
+  padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
 }
 
 .app-header {
@@ -47,6 +48,10 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 1.5rem 1.5rem 1rem;
+  /* + safe-area: keeps the title clear of the notch / status bar in standalone mode */
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+  padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
   border-bottom: 1px solid var(--border);
 }
 

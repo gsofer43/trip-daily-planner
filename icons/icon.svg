@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="מתכנן מסלול טיול">
+  <rect width="512" height="512" fill="#1f7a6c"/>
+  <circle cx="338" cy="148" r="64" fill="#f6f4ef"/>
+  <polygon points="205,154 0,410 430,410" fill="#c2622f"/>
+  <polygon points="205,154 172,196 238,196" fill="#f6f4ef"/>
+  <polygon points="338,225 143,430 522,430" fill="#17594f"/>
+  <polygon points="338,225 313,258 363,258" fill="#f6f4ef"/>
+  <rect y="430" width="512" height="82" fill="#124a41"/>
+</svg>

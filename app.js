@@ -2624,6 +2624,15 @@ resetBtn.addEventListener('click', () => {
   renderWeatherList();
 });
 
+// ---------- PWA service worker ----------
+// רישום ה-service worker שמאפשר התקנה במכשיר ועבודה גם בלי אינטרנט.
+// לא רץ כשפותחים את הקובץ ישירות מהדיסק (file://) — רק דרך http/https.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* לא קריטי — האתר עובד גם בלי */ });
+  });
+}
+
 // ---------- Init ----------
 render();
 renderWineries();
