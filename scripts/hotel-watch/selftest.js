@@ -49,14 +49,21 @@ const CASES = [
     }
   },
   {
-    label: 'Agoda / Molla Theth 12-15 Sep (sold out - the false-positive case)',
+    // Regression case for the false "available" that actually reached someone's inbox: Agoda
+    // renders a "similar properties" carousel with OTHER hotels' prices on a sold-out page, and
+    // counting prices page-wide read that as a room being free.
+    //
+    // Deliberately uses DEEP WINTER, not the trip dates. Theth guesthouses are shut then, so the
+    // answer stays 'unavailable' forever. Pinning this to real trip dates would make the test go
+    // red the day a room genuinely frees up - and a test that cries wolf is one you stop reading.
+    label: 'Agoda / Molla Theth deep winter (sold out - the false-positive regression)',
     source: 'agoda',
     expect: 'unavailable',
     watch: {
       hotelName: 'Molla Guest House',
       agodaUrl: 'https://www.agoda.com/en-gb/molla-guest-house/hotel/theth-al.html',
-      checkin: '2026-09-12',
-      checkout: '2026-09-15'
+      checkin: '2027-01-14',
+      checkout: '2027-01-16'
     }
   },
   {
