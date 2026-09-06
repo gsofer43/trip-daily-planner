@@ -1178,6 +1178,36 @@ const HOTELS_BY_LOCATION = [
     ]
   },
   {
+    location: 'הימרה (Himarë)',
+    searchLocation: 'Himarë, Albania',
+    checkin: '21/09',
+    checkout: '23/09',
+    note: 'לנסות לשחק עם הימים — אין מקום במלונות',
+    hotels: [
+      {
+        name: 'Prado Luxury Hotel',
+        note: 'עדיפות ראשונה',
+        bookingUrl: 'https://www.booking.com/hotel/al/prado-luxury-himare.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/prado-luxury-hotel/hotel/vlora-al.html'
+      },
+      {
+        name: 'Miamar Luxury Hotel & Spa',
+        bookingUrl: 'https://www.booking.com/hotel/al/miamar.html'
+      },
+      {
+        name: 'Saint Nicolas Hotel',
+        bookingUrl: 'https://www.booking.com/hotel/al/saint-nicolas.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/saint-nicolas/hotel/himara-al.html'
+      },
+      {
+        name: 'Acta 1939',
+        note: 'מהמם — לבדוק ענייני חניה',
+        bookingUrl: 'https://www.booking.com/hotel/al/acta-1939.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/acta-1939/hotel/himara-al.html'
+      }
+    ]
+  },
+  {
     location: 'טירנה (Tirana)',
     searchLocation: 'Tirana, Albania',
     checkin: '23/09',
@@ -1229,6 +1259,40 @@ const HOTELS_BY_LOCATION = [
         name: 'Crowne Plaza Budva by IHG',
         bookingUrl: 'https://www.booking.com/hotel/me/budva-budva.html',
         agodaUrl: 'https://www.agoda.com/en-gb/hotel-budva/hotel/budva-me.html'
+      }
+    ]
+  },
+  {
+    location: 'קוטור (Kotor)',
+    searchLocation: 'Kotor, Montenegro',
+    checkin: '27/09',
+    checkout: '30/09',
+    hotels: [
+      {
+        name: 'Hotel Forza Terra',
+        bookingUrl: 'https://www.booking.com/hotel/me/forza-terra.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/hotel-forza-terra/hotel/kotor-me.html'
+      },
+      {
+        name: 'HUMA Kotor Bay Hotel and Villas',
+        bookingUrl: 'https://www.booking.com/hotel/me/allure-palazzi-kotor-bay.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/huma-kotor-bay/hotel/kotor-me.html'
+      },
+      {
+        name: 'Adiya Signature Hotel - Adults only',
+        note: 'אין מעלית',
+        bookingUrl: 'https://www.booking.com/hotel/me/adiya-signature.html'
+      },
+      {
+        name: 'Boutique Hotel Astoria',
+        note: 'אין מקום כרגע',
+        bookingUrl: 'https://www.booking.com/hotel/me/astoria-kotor.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/boutique-hotel-astoria/hotel/kotor-me.html'
+      },
+      {
+        name: 'Hotel Forza Mare',
+        bookingUrl: 'https://www.booking.com/hotel/me/forza-mare-kotor.html',
+        agodaUrl: 'https://www.agoda.com/en-gb/hotel-forza-mare/hotel/kotor-me.html'
       }
     ]
   }
@@ -1380,6 +1444,7 @@ function buildHotelCard(hotel, group) {
 
   card.innerHTML = `
     <p class="place-name">${escapeHtml(hotel.name)}</p>
+    ${hotel.note ? `<p class="place-note">${escapeHtml(hotel.note)}</p>` : ''}
     ${watch ? '<span class="hotel-watch-badge">עוקב 👁️</span>' : ''}
     ${watch ? `
       <p class="hotel-watch-status hotel-watch-status-${escapeHtml(statusKey || 'pending')}">
@@ -1462,6 +1527,13 @@ function renderHotels() {
     titleEl.className = 'place-group-title';
     titleEl.textContent = group.location;
     groupEl.appendChild(titleEl);
+
+    if (group.note) {
+      const noteEl = document.createElement('p');
+      noteEl.className = 'place-group-note';
+      noteEl.textContent = group.note;
+      groupEl.appendChild(noteEl);
+    }
 
     const cardsEl = document.createElement('div');
     cardsEl.className = 'place-cards';

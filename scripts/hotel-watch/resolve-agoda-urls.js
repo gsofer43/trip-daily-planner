@@ -20,7 +20,10 @@ import { chromium } from 'playwright';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_JS = path.join(HERE, '..', '..', 'app.js');
 
-// Agoda's own city-slug for each searchLocation in HOTELS_BY_LOCATION.
+// Agoda's own city-slug(s) for each searchLocation in HOTELS_BY_LOCATION. A list, because
+// Agoda does not always file a town under the name you would expect - Himarë properties sit
+// under himara-al or under vlora-al (its county), and guessing only one of them makes every
+// hotel there look missing.
 const CITY_SLUGS = {
   'Rijeka Crnojevića, Montenegro': 'rijeka-crnojevica-me',
   'Theth, Albania': 'theth-al',
@@ -28,7 +31,9 @@ const CITY_SLUGS = {
   'Berat, Albania': 'berat-al',
   'Sarandë, Albania': 'sarande-al',
   'Tirana, Albania': 'tirana-al',
-  'Budva, Montenegro': 'budva-me'
+  'Budva, Montenegro': 'budva-me',
+  'Himarë, Albania': ['himara-al', 'vlora-al', 'himare-al'],
+  'Kotor, Montenegro': 'kotor-me'
 };
 
 // Pulls the HOTELS_BY_LOCATION literal straight out of app.js so this tool cannot drift from
@@ -109,9 +114,14 @@ async function main() {
       console.log(`?? no Agoda city slug for ${group.searchLocation} - skipping group`);
       continue;
     }
+    const citySlugs = Array.isArray(citySlug) ? citySlug : [citySlug];
     for (const entry of group.hotels) {
       const hotel = typeof entry === 'string' ? { name: entry } : entry;
-      const result = await resolveOne(page, hotel.name, citySlug);
+      let result = { ok: false, reason: 'no city slug tried' };
+      for (const slug of citySlugs) {
+        result = await resolveOne(page, hotel.name, slug);
+        if (result.ok) break;
+      }
       if (result.ok) {
         console.log(`OK        ${hotel.name}  ->  ${result.url}`);
         verified.push({ name: hotel.name, url: result.url });
